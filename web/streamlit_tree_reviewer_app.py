@@ -272,19 +272,6 @@ def restore_crop_to_full_canvas(
     canvas.paste(crop, (x1, y1))
     return canvas
 
-# def build_mask_original_display(record: Dict[str, Any], node_id: str, path: Path) -> Optional[Image.Image]:
-#     full_size = get_full_image_size(record)
-#     bbox = find_node_bbox(record, node_id)
-
-#     try:
-#         with Image.open(path) as img:
-#             crop = img.convert("RGB")
-#             if not full_size or not bbox:
-#                 return crop
-#             restored = restore_crop_to_full_canvas(crop, bbox=bbox, full_size=full_size, fill=0)
-#             return pil_to_displayable(restored)
-#     except Exception:
-#         return None
 
 def build_mask_original_display(record: Dict[str, Any], node_id: str, storage_path: Optional[str]) -> Optional[Image.Image]:
     if not storage_path:
@@ -309,16 +296,6 @@ def build_mask_original_display(record: Dict[str, Any], node_id: str, storage_pa
     except Exception:
         return None
     
-# def build_direct_display(path: Path) -> Optional[Image.Image]:
-#     try:
-#         with Image.open(path) as img:
-#             if img.mode == "P":
-#                 img = img.convert("RGBA")
-#             elif img.mode not in ("RGB", "RGBA", "L"):
-#                 img = img.convert("RGB")
-#             return pil_to_displayable(img.copy())
-#     except Exception:
-#         return None
 def build_direct_display(storage_path: Optional[str]) -> Optional[Image.Image]:
     image_id = st.session_state.get("selected_image_id")
     if not storage_path or not image_id:
@@ -334,6 +311,32 @@ def build_direct_display(storage_path: Optional[str]) -> Optional[Image.Image]:
     except Exception:
         return None
 
+@st.cache_data(show_spinner=False)
+def build_overlay_png_bytes(image_id: str, full_path: str, mask_path: str, alpha: float = 0.45) -> bytes:
+    base = pil_from_storage_raw(image_id, full_path).convert("RGBA")
+    mask = pil_from_storage_raw(image_id, mask_path).convert("L")
+
+    base_np = np.array(base).copy()
+    mask_np = np.array(mask)
+
+    active = mask_np > 0
+    overlay = base_np.copy()
+
+    overlay_rgb = overlay[..., :3].astype(np.float32)
+    color_rgb = np.zeros_like(overlay_rgb)
+    color_rgb[..., 0] = 255.0
+
+    overlay_rgb[active] = (
+        (1.0 - alpha) * overlay_rgb[active] + alpha * color_rgb[active]
+    )
+
+    overlay[..., :3] = np.clip(overlay_rgb, 0, 255).astype(np.uint8)
+    out = Image.fromarray(overlay, mode="RGBA")
+
+    bio = BytesIO()
+    out.save(bio, format="PNG")
+    return bio.getvalue()
+
 def build_overlay_on_full_image(
     record: Dict[str, Any],
     node_id: str,
@@ -347,70 +350,11 @@ def build_overlay_on_full_image(
         return None
 
     try:
-        base = pil_from_storage_raw(record["image_id"], full_path).convert("RGBA")
-        mask = pil_from_storage_raw(record["image_id"], mask_path).convert("L")
-
-        base_np = np.array(base).copy()
-        mask_np = np.array(mask)
-
-        active = mask_np > 0
-        overlay = base_np.copy()
-
-        overlay_rgb = overlay[..., :3].astype(np.float32)
-        color_rgb = np.zeros_like(overlay_rgb)
-        color_rgb[..., 0] = 255.0
-
-        overlay_rgb[active] = (
-            (1.0 - alpha) * overlay_rgb[active] + alpha * color_rgb[active]
-        )
-
-        overlay[..., :3] = np.clip(overlay_rgb, 0, 255).astype(np.uint8)
-        return Image.fromarray(overlay, mode="RGBA")
+        raw = build_overlay_png_bytes(record["image_id"], full_path, mask_path, alpha)
+        with Image.open(BytesIO(raw)) as img:
+            return img.copy()
     except Exception:
         return None
-    
-# def build_overlay_on_full_image(
-#     record: Dict[str, Any],
-#     node_id: str,
-#     alpha: float = 0.45,
-# ) -> Optional[Image.Image]:
-#     assets = node_assets(record, node_id)
-#     full_path = assets.get("root_original")
-#     mask_path = assets.get("mask")
-
-#     if not full_path or not mask_path:
-#         return None
-
-#     try:
-#         with Image.open(full_path) as full_img:
-#             base = full_img.convert("RGBA")
-
-#         with Image.open(mask_path) as mask_img:
-#             mask = mask_img.convert("L")
-
-#         base_np = np.array(base).copy()
-#         mask_np = np.array(mask)
-
-#         # 빨간 오버레이
-#         color = np.zeros_like(base_np)
-#         color[..., 0] = 255
-#         color[..., 3] = 0
-
-#         active = mask_np > 0
-#         overlay = base_np.copy()
-
-#         overlay_rgb = overlay[..., :3].astype(np.float32)
-#         color_rgb = np.zeros_like(overlay_rgb)
-#         color_rgb[..., 0] = 255.0
-
-#         overlay_rgb[active] = (
-#             (1.0 - alpha) * overlay_rgb[active] + alpha * color_rgb[active]
-#         )
-
-#         overlay[..., :3] = np.clip(overlay_rgb, 0, 255).astype(np.uint8)
-#         return Image.fromarray(overlay, mode="RGBA")
-#     except Exception:
-#         return None
     
 @st.cache_resource
 def get_supabase_client() -> Client:
@@ -430,22 +374,27 @@ def ensure_image_blob_cache(image_id: str) -> Dict[str, bytes]:
         st.session_state["blob_cache"] = {}
     return st.session_state["blob_cache"]
 
-# def download_blob(storage_path: str) -> bytes:
-#     return get_supabase_client().storage.from_(dataset_bucket_name()).download(storage_path)
+def ensure_blob_cache() -> Dict[str, bytes]:
+    if "blob_cache" not in st.session_state:
+        st.session_state["blob_cache"] = {}
+    return st.session_state["blob_cache"]
 
 def download_blob(storage_path: str) -> bytes:
-    try:
-        return get_supabase_client().storage.from_(dataset_bucket_name()).download(storage_path)
-    except Exception as e:
-        st.error(f"다운로드 실패: {storage_path}")
-        st.error(str(e))
-        raise
+    return get_supabase_client().storage.from_(dataset_bucket_name()).download(storage_path)
+
+
+# def get_blob(image_id: str, storage_path: str) -> bytes:
+#     cache = ensure_image_blob_cache(image_id)
+#     if storage_path not in cache:
+#         cache[storage_path] = download_blob(storage_path)
+#     return cache[storage_path]
 
 def get_blob(image_id: str, storage_path: str) -> bytes:
-    cache = ensure_image_blob_cache(image_id)
-    if storage_path not in cache:
-        cache[storage_path] = download_blob(storage_path)
-    return cache[storage_path]
+    cache = ensure_blob_cache()
+    cache_key = f"{image_id}::{storage_path}"
+    if cache_key not in cache:
+        cache[cache_key] = download_blob(storage_path)
+    return cache[cache_key]
 
 def pil_from_storage_raw(image_id: str, storage_path: str) -> Image.Image:
     raw = get_blob(image_id, storage_path)
@@ -509,6 +458,210 @@ def hierarchy_button_width_px(node_id: str) -> int:
     label = human_label(node_id)
     width = TREE_BUTTON_BASE_PX + TREE_CHAR_WIDTH_PX * len(label)
     return int(max(TREE_BUTTON_MIN_WIDTH_PX, min(TREE_BUTTON_MAX_WIDTH_PX, width)))
+
+
+
+@st.cache_data(show_spinner=False)
+def compute_hierarchy_layout_cached(record_sig: str) -> Dict[str, Any]:
+    record = json.loads(record_sig)
+    node_widths: Dict[str, float] = {}
+    subtree_widths: Dict[str, float] = {}
+    node_lefts: Dict[str, float] = {}
+    rows_by_depth: Dict[int, List[str]] = {}
+
+    def human_label_from_id(node_id: str) -> str:
+        return node_id.split("__")[-1] if "__" in node_id else node_id
+
+    def is_reviewable(node_id: str) -> bool:
+        return human_label_from_id(node_id).lower() != "others"
+
+    def tree_children(node_id: str) -> List[str]:
+        out = []
+        for child_id in record["nodes"][node_id]["children"]:
+            child_node = record["nodes"][child_id]
+            if child_node["actual"] and not is_reviewable(child_id):
+                out.extend(tree_children(child_id))
+            else:
+                out.append(child_id)
+        return out
+
+    def button_width(node_id: str) -> int:
+        label = human_label_from_id(node_id)
+        width = TREE_BUTTON_BASE_PX + TREE_CHAR_WIDTH_PX * len(label)
+        return int(max(TREE_BUTTON_MIN_WIDTH_PX, min(TREE_BUTTON_MAX_WIDTH_PX, width)))
+
+    def measure(node_id: str) -> float:
+        own_width = button_width(node_id)
+        node_widths[node_id] = own_width
+        children = tree_children(node_id)
+        if not children:
+            subtree_width = own_width
+        else:
+            children_total = 0.0
+            for idx, child_id in enumerate(children):
+                children_total += measure(child_id)
+                if idx < len(children) - 1:
+                    children_total += TREE_SIBLING_GAP_PX
+            subtree_width = max(own_width, children_total)
+        subtree_widths[node_id] = subtree_width
+        return subtree_width
+
+    def place(node_id: str, left_x: float, depth: int) -> None:
+        node_lefts[node_id] = left_x
+        rows_by_depth.setdefault(depth, []).append(node_id)
+        children = tree_children(node_id)
+        if not children:
+            return
+        child_left = left_x
+        for idx, child_id in enumerate(children):
+            place(child_id, child_left, depth + 1)
+            child_left += subtree_widths[child_id]
+            if idx < len(children) - 1:
+                child_left += TREE_SIBLING_GAP_PX
+
+    root_ids = record["roots"]
+    if not root_ids:
+        return {"rows": [], "node_lefts": {}, "node_widths": {}, "tree_width": 0.0}
+
+    total_width = TREE_SIDE_PAD_PX * 2.0
+    for idx, root_id in enumerate(root_ids):
+        total_width += measure(root_id)
+        if idx < len(root_ids) - 1:
+            total_width += TREE_ROOT_GAP_PX
+
+    left_x = TREE_SIDE_PAD_PX
+    for idx, root_id in enumerate(root_ids):
+        place(root_id, left_x, 0)
+        left_x += subtree_widths[root_id]
+        if idx < len(root_ids) - 1:
+            left_x += TREE_ROOT_GAP_PX
+
+    ordered_rows = []
+    for depth in sorted(rows_by_depth):
+        ordered_rows.append(sorted(rows_by_depth[depth], key=lambda nid: node_lefts[nid]))
+
+    return {
+        "rows": ordered_rows,
+        "node_lefts": node_lefts,
+        "node_widths": node_widths,
+        "tree_width": total_width,
+    }
+
+@st.cache_data(show_spinner=False)
+def build_tree_connector_svg_cached(
+    image_id: str,
+    rows: List[List[str]],
+    node_lefts: Dict[str, float],
+    node_widths: Dict[str, float],
+    tree_width: float,
+    node_children_map: Dict[str, List[str]],
+    node_actual_map: Dict[str, bool],
+) -> str:
+    if not rows:
+        return ""
+
+    def is_reviewable(node_id: str) -> bool:
+        return human_label(node_id).lower() != "others"
+
+    def tree_children(node_id: str) -> List[str]:
+        out = []
+        for child_id in node_children_map.get(node_id, []):
+            child_actual = node_actual_map.get(child_id, False)
+            if child_actual and not is_reviewable(child_id):
+                out.extend(tree_children(child_id))
+            else:
+                out.append(child_id)
+        return out
+
+    svg_height = (
+        TREE_PANEL_TOP_PAD_PX * 2
+        + len(rows) * TREE_ROW_HEIGHT_PX
+        + max(0, len(rows) - 1) * TREE_ROW_GAP_PX
+    )
+
+    def row_center_y(row_idx: int) -> float:
+        return (
+            TREE_PANEL_TOP_PAD_PX
+            + row_idx * (TREE_ROW_HEIGHT_PX + TREE_ROW_GAP_PX)
+            + TREE_ROW_HEIGHT_PX / 2.0
+        )
+
+    def node_center_x(node_id: str) -> float:
+        return node_lefts[node_id] + node_widths[node_id] / 2.0
+
+    strokes = []
+
+    for row_idx, parent_row in enumerate(rows[:-1]):
+        child_row = rows[row_idx + 1]
+        parent_y = row_center_y(row_idx)
+        child_y = row_center_y(row_idx + 1)
+        bus_y = child_y - TREE_ROW_HEIGHT_PX / 2.0 - 6.0
+        child_set = set(child_row)
+
+        for parent_id in parent_row:
+            children = [c for c in tree_children(parent_id) if c in child_set]
+            if not children:
+                continue
+
+            px = node_center_x(parent_id)
+
+            if len(children) == 1:
+                cx = node_center_x(children[0])
+                strokes.append(
+                    f"<line x1='{px:.1f}' y1='{parent_y + TREE_ROW_HEIGHT_PX/2 - 6:.1f}' "
+                    f"x2='{cx:.1f}' y2='{child_y - TREE_ROW_HEIGHT_PX/2 + 6:.1f}' />"
+                )
+                continue
+
+            child_centers = [node_center_x(c) for c in children]
+            left_x = min(child_centers)
+            right_x = max(child_centers)
+
+            strokes.append(
+                f"<line x1='{px:.1f}' y1='{parent_y + TREE_ROW_HEIGHT_PX/2 - 6:.1f}' "
+                f"x2='{px:.1f}' y2='{bus_y:.1f}' />"
+            )
+            strokes.append(
+                f"<line x1='{left_x:.1f}' y1='{bus_y:.1f}' "
+                f"x2='{right_x:.1f}' y2='{bus_y:.1f}' />"
+            )
+            for cx in child_centers:
+                strokes.append(
+                    f"<line x1='{cx:.1f}' y1='{bus_y:.1f}' "
+                    f"x2='{cx:.1f}' y2='{child_y - TREE_ROW_HEIGHT_PX/2 + 6:.1f}' />"
+                )
+
+    return f"""
+    <div style="position:relative; height:0; overflow:visible; pointer-events:none;">
+    <svg
+        width="{int(math.ceil(tree_width))}"
+        height="{int(math.ceil(svg_height))}"
+        viewBox="0 0 {int(math.ceil(tree_width))} {int(math.ceil(svg_height))}"
+        xmlns="http://www.w3.org/2000/svg"
+        style="position:absolute; left:0; top:0; z-index:0; pointer-events:none; overflow:visible;">
+        <g stroke="rgba(148,163,184,0.55)" stroke-width="2" fill="none" stroke-linecap="round">
+            {''.join(strokes)}
+        </g>
+    </svg>
+    </div>
+    """
+
+def record_structure_signature(record: Dict[str, Any]) -> str:
+    payload = {
+        "image_id": record["image_id"],
+        "roots": record["roots"],
+        "actual_nodes": record["actual_nodes"],
+        "nodes": {
+            nid: {
+                "children": record["nodes"][nid].get("children", []),
+                "actual": record["nodes"][nid].get("actual", False),
+                "label": record["nodes"][nid].get("label", ""),
+            }
+            for nid in sorted(record["nodes"])
+        },
+    }
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
 
 def compute_hierarchy_layout(record: Dict[str, Any]) -> Dict[str, Any]:
     node_widths: Dict[str, float] = {}
@@ -988,64 +1141,6 @@ def get_inspector_pills(record: Dict[str, Any], node_id: str) -> List[str]:
         pretty_path,
     ]
 
-# def node_assets(record: Dict[str, Any], node_id: str) -> Dict[str, Any]:
-#     assets: Dict[str, Any] = {
-#         "root_original": None,
-#         "root_overlay": None,
-#         "mask_original": None,
-#         "mask": None,
-#         "instances": [],
-#         "full_size": None,
-#         "bbox": None,
-#     }
-
-#     base = Path(record["image_dir"])
-#     leaf = human_label(node_id)
-#     node_info = record["nodes"].get(node_id, {})
-#     folder_name = node_info.get("folder_name")
-
-#     # image-level assets
-#     full_path = get_full_image_path(record)
-#     if full_path and full_path.exists():
-#         assets["root_original"] = full_path
-#         assets["full_size"] = read_image_size(full_path)
-
-#     overlay_path = base / "final_union_on_image.png"
-#     if overlay_path.exists():
-#         assets["root_overlay"] = overlay_path
-
-#     if not folder_name:
-#         return assets
-
-#     node_dir = base / folder_name
-#     if not node_dir.exists():
-#         return assets
-
-#     # bbox for restoring only *.mask.original.png
-#     assets["bbox"] = find_node_bbox(record, node_id)
-
-#     mask_original_path = node_dir / f"{leaf}.mask.original.png"
-#     if mask_original_path.exists():
-#         assets["mask_original"] = mask_original_path
-
-#     mask_path = node_dir / f"{leaf}.mask.png"
-#     if mask_path.exists():
-#         assets["mask"] = mask_path
-    
-#     instance_paths: List[Path] = []
-#     for p in node_dir.iterdir():
-#         if not p.is_file():
-#             continue
-#         if p.suffix.lower() not in IMAGE_EXTS:
-#             continue
-#         if is_instance_mask_file(p, leaf):
-#             instance_paths.append(p)
-
-#     instance_paths = sorted(instance_paths, key=lambda p: instance_mask_sort_key(p, leaf))
-
-#     assets["instances"] = instance_paths
-#     return assets
-
 def node_assets(record: Dict[str, Any], node_id: str) -> Dict[str, Any]:
     node = record["nodes"].get(node_id, {})
     bbox = node.get("bbox")
@@ -1431,22 +1526,30 @@ def render_image_list(records: Dict[str, Any]) -> None:
     with st.container(height=960):
         for image_id in filtered_ids:
             record = records[image_id]
-            done, total = node_progress(image_id, record)
+            # done, total = node_progress(image_id, record)
+            # selected = st.session_state.selected_image_id == image_id
+            # completed = image_complete(image_id, record)
+
             selected = st.session_state.selected_image_id == image_id
-            completed = image_complete(image_id, record)
+            done, total = node_progress(image_id, record)
+
+            if selected or done > 0:
+                completed = image_complete(image_id, record)
+            else:
+                completed = False
+
+
             box_key = f"imgbox_{safe_token(image_id)}"
             inject_box_style(box_key, selected=selected, done=completed)
             with st.container(key=box_key):
                 icon = "🟦" if completed else ("🟡" if done else "⬜")
                 display_id = str(int(image_id)) if str(image_id).isdigit() else str(image_id)
-                # if st.button(f"{icon} {display_id}", key=f"pick_image_{image_id}"):
                 if st.button(f"{icon} {display_id}", key=f"pick_image_{image_id}", use_container_width=True):
                     st.session_state.selected_image_id = image_id
                     st.session_state.selected_mode = "node"
-                    # first_node = records[image_id]["actual_nodes"][0] if records[image_id]["actual_nodes"] else None
                     first_node = first_reviewable_node_id(records[image_id])
                     st.session_state.selected_node_id = first_node
-                    st.rerun()
+                    # st.rerun()
                 progress = (done / total * 100) if total > 0 else 0
                 st.caption(f"노드 진행률: {done}/{total} • {progress:.1f}% 완료")
                 
@@ -1471,7 +1574,7 @@ def render_tree_panel(record: Optional[Dict[str, Any]]) -> None:
         if st.button(f"{'🟦' if tree_done else '⬜'} 전체 트리 질문", key=f"open_tree_summary_{image_id}", use_container_width=True, disabled=not tree_enabled):
             st.session_state.selected_mode = "tree"
             st.session_state.selected_node_id = None
-            st.rerun()
+            # st.rerun()
         if not tree_enabled:
             st.caption("모든 노드를 완료해야 활성화됩니다.")
 
@@ -1506,7 +1609,7 @@ def render_tree_node(record: Dict[str, Any], node_id: str, depth: int) -> None:
                 st.session_state.selected_image_id = image_id
                 st.session_state.selected_mode = "node"
                 st.session_state.selected_node_id = node_id
-                st.rerun()
+                # st.rerun()
         else:
             st.markdown(f"<div class='small-muted'>{label}</div>", unsafe_allow_html=True)
 
@@ -1526,7 +1629,14 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
     if record is None:
         return
 
-    layout = compute_hierarchy_layout(record)
+    # layout = compute_hierarchy_layout(record)
+    # rows = layout["rows"]
+    # node_lefts = layout["node_lefts"]
+    # node_widths = layout["node_widths"]
+    # tree_width = layout["tree_width"]
+
+    record_sig = record_structure_signature(record)
+    layout = compute_hierarchy_layout_cached(record_sig)
     rows = layout["rows"]
     node_lefts = layout["node_lefts"]
     node_widths = layout["node_widths"]
@@ -1542,15 +1652,30 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
         inject_hierarchy_compact_css(panel_key)
 
         with st.container(key=panel_key):
-            # 1) 선 SVG를 먼저 깐다 (뒤)
-            svg_html = build_tree_connector_svg(
-                record=record,
-                rows=rows,
-                node_lefts=node_lefts,
-                node_widths=node_widths,
-                tree_width=tree_width,
+            # 1) SVG를 먼저 깐다
+            # svg_html = build_tree_connector_svg(
+            #     record=record,
+            #     rows=rows,
+            #     node_lefts=node_lefts,
+            #     node_widths=node_widths,
+            #     tree_width=tree_width,
+            # )
+            # st.markdown(svg_html, unsafe_allow_html=True)
+
+            node_children_map = {nid: record["nodes"][nid]["children"] for nid in record["nodes"]}
+            node_actual_map = {nid: record["nodes"][nid]["actual"] for nid in record["nodes"]}
+
+            svg_html = build_tree_connector_svg_cached(
+                record["image_id"],
+                rows,
+                node_lefts,
+                node_widths,
+                tree_width,
+                node_children_map,
+                node_actual_map,
             )
             st.markdown(svg_html, unsafe_allow_html=True)
+
 
             # 2) 그 위에 row 버튼들을 올린다
             for row_idx, row in enumerate(rows):
@@ -1601,7 +1726,7 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
                                     st.session_state.selected_image_id = record["image_id"]
                                     st.session_state.selected_mode = "node"
                                     st.session_state.selected_node_id = node_id
-                                    st.rerun()
+                                    # st.rerun()
                             else:
                                 st.button(label, key=button_key, use_container_width=True, disabled=True)
 
@@ -1809,6 +1934,7 @@ def render_node_detail(record: Optional[Dict[str, Any]]) -> None:
     render_question_block(image_id, "node", node_questions_for(node_id), title="노드 질문", node_id=node_id)
     render_finalize_box(record)
 
+
 def render_finalize_box(record: Dict[str, Any]) -> None:
     image_id = record["image_id"]
     report = missing_report(image_id, record)
@@ -1836,6 +1962,8 @@ def render_finalize_box(record: Dict[str, Any]) -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
 
 # Main app
 
