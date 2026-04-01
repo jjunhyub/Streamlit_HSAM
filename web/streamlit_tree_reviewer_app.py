@@ -272,6 +272,39 @@ def restore_crop_to_full_canvas(
     canvas.paste(crop, (x1, y1))
     return canvas
 
+def collect_prefetch_paths_for_image(record: Dict[str, Any], include_instances: bool = False) -> List[str]:
+    paths: List[str] = []
+
+    def add_path(p: Optional[str]) -> None:
+        if p and p not in paths:
+            paths.append(p)
+
+    add_path(record.get("root_image_path"))
+    add_path(record.get("root_overlay_path"))
+
+    for node_id in record.get("actual_nodes", []):
+        node = record["nodes"].get(node_id, {})
+        add_path(node.get("mask_path"))
+        add_path(node.get("mask_original_path"))
+
+        if include_instances:
+            for p in node.get("instance_paths", []) or []:
+                add_path(p)
+
+    return paths
+
+def prefetch_image_assets(record: Dict[str, Any], include_instances: bool = False, max_files: Optional[int] = None) -> None:
+    image_id = record["image_id"]
+    paths = collect_prefetch_paths_for_image(record, include_instances=include_instances)
+
+    if max_files is not None:
+        paths = paths[:max_files]
+
+    for storage_path in paths:
+        try:
+            get_blob(image_id, storage_path)
+        except Exception:
+            pass
 
 def build_mask_original_display(record: Dict[str, Any], node_id: str, storage_path: Optional[str]) -> Optional[Image.Image]:
     if not storage_path:
@@ -2095,6 +2128,7 @@ def ensure_app_state() -> None:
         "_auth_error": "",
         "last_db_save_ts": 0.0,
         "annotations_dirty": False,
+        "prefetched_image_ids": [],
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -2248,10 +2282,22 @@ def main() -> None:
             st.session_state.selected_node_id = first_reviewable_node_id(records[st.session_state.selected_image_id])
 
     selected_record = records.get(st.session_state.selected_image_id)
+
     if selected_record and st.session_state.selected_mode == "node":
         if st.session_state.selected_node_id not in selected_record["nodes"]:
             actual_nodes = selected_record["actual_nodes"]
             st.session_state.selected_node_id = first_reviewable_node_id(selected_record)
+
+
+    if selected_record:
+        prefetched = st.session_state.get("prefetched_image_ids", [])
+        image_id = selected_record["image_id"]
+
+        if image_id not in prefetched:
+            prefetch_image_assets(selected_record, include_instances=False)
+            prefetched.append(image_id)
+            st.session_state["prefetched_image_ids"] = prefetched
+
 
     col_left, col_mid, col_right = st.columns([0.5, 0.5, 3])
     with col_left:
