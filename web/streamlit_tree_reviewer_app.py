@@ -1624,7 +1624,6 @@ def render_asset_panel(record: Dict[str, Any], node_id: str) -> None:
     render_visual_header(record, node_id)
 
     assets = node_assets(record, node_id)
-    st.write("DEBUG assets:", assets)
     leaf = human_label(node_id)
 
     tabs = st.tabs(["기본", "인스턴스"])
