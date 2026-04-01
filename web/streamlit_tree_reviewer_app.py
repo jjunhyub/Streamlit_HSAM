@@ -1904,6 +1904,7 @@ def render_asset_panel(record: Dict[str, Any], node_id: str) -> None:
                 st.info("인스턴스 마스크 이미지를 읽지 못했습니다.")
         else:
             st.info("인스턴스 마스크가 없습니다.")
+
 # Rendering: detail
 
 def render_question_block(
@@ -2031,8 +2032,8 @@ def render_node_detail(record: Optional[Dict[str, Any]]) -> None:
         st.info("노드를 선택하세요.")
         return
 
-    render_question_block(image_id, "node", node_questions_for(node_id), title="노드 질문", node_id=node_id)
     render_asset_panel(record, node_id)
+    render_question_block(image_id, "node", node_questions_for(node_id), title="노드 질문", node_id=node_id)
     render_finalize_box(record)
 
 
