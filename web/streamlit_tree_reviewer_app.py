@@ -1726,7 +1726,7 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
                                     st.session_state.selected_image_id = record["image_id"]
                                     st.session_state.selected_mode = "node"
                                     st.session_state.selected_node_id = node_id
-                                    # st.rerun()
+                                    st.rerun()
                             else:
                                 st.button(label, key=button_key, use_container_width=True, disabled=True)
 
@@ -1924,12 +1924,20 @@ def render_node_detail(record: Optional[Dict[str, Any]]) -> None:
         render_finalize_box(record)
         return
 
-    node_id = st.session_state.selected_node_id
-    if not node_id:
+    if not st.session_state.selected_node_id:
         st.info("가운데 tree에서 node를 선택하세요.")
         return
 
-    render_experimental_tree_panel(record)
+    show_hierarchy = st.toggle("Hierarchy view 보기", value=False, key=f"show_hier_{image_id}")
+    if show_hierarchy:
+        render_experimental_tree_panel(record)
+
+    # hierarchy 클릭 이후 최신 selected_node_id를 다시 읽는다
+    node_id = st.session_state.selected_node_id
+    if not node_id:
+        st.info("노드를 선택하세요.")
+        return
+
     render_asset_panel(record, node_id)
     render_question_block(image_id, "node", node_questions_for(node_id), title="노드 질문", node_id=node_id)
     render_finalize_box(record)
