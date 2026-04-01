@@ -295,21 +295,52 @@ def build_mask_original_display(record: Dict[str, Any], node_id: str, storage_pa
         return pil_to_displayable(restored)
     except Exception:
         return None
-    
+
+@st.cache_data(show_spinner=False)
+def get_displayable_image_bytes(image_id: str, storage_path: str) -> bytes:
+    raw = get_blob(image_id, storage_path)
+    with Image.open(BytesIO(raw)) as img:
+        if img.mode == "P":
+            img = img.convert("RGBA")
+        elif img.mode not in ("RGB", "RGBA", "L"):
+            img = img.convert("RGB")
+
+        out = pil_to_displayable(img.copy())
+        bio = BytesIO()
+        if out.mode == "RGBA":
+            out.save(bio, format="PNG")
+        elif out.mode == "L":
+            out.save(bio, format="PNG")
+        else:
+            out.save(bio, format="JPEG", quality=90)
+        return bio.getvalue()
+
 def build_direct_display(storage_path: Optional[str]) -> Optional[Image.Image]:
     image_id = st.session_state.get("selected_image_id")
     if not storage_path or not image_id:
         return None
 
     try:
-        img = pil_from_storage_raw(image_id, storage_path)
-        if img.mode == "P":
-            img = img.convert("RGBA")
-        elif img.mode not in ("RGB", "RGBA", "L"):
-            img = img.convert("RGB")
-        return pil_to_displayable(img)
+        raw = get_displayable_image_bytes(image_id, storage_path)
+        with Image.open(BytesIO(raw)) as img:
+            return img.copy()
     except Exception:
         return None
+    
+# def build_direct_display(storage_path: Optional[str]) -> Optional[Image.Image]:
+#     image_id = st.session_state.get("selected_image_id")
+#     if not storage_path or not image_id:
+#         return None
+
+#     try:
+#         img = pil_from_storage_raw(image_id, storage_path)
+#         if img.mode == "P":
+#             img = img.convert("RGBA")
+#         elif img.mode not in ("RGB", "RGBA", "L"):
+#             img = img.convert("RGB")
+#         return pil_to_displayable(img)
+#     except Exception:
+#         return None
 
 @st.cache_data(show_spinner=False)
 def build_overlay_png_bytes(image_id: str, full_path: str, mask_path: str, alpha: float = 0.45) -> bytes:
@@ -1745,55 +1776,122 @@ def render_visual_header(record: Dict[str, Any], node_id: str) -> None:
         unsafe_allow_html=True,
     )
     
+# def render_asset_panel(record: Dict[str, Any], node_id: str) -> None:
+#     render_visual_header(record, node_id)
+
+#     assets = node_assets(record, node_id)
+#     leaf = human_label(node_id)
+
+#     tabs = st.tabs(["기본", "인스턴스"])
+
+#     with tabs[0]:
+#         review_items: List[Image.Image] = []
+#         review_captions: List[str] = []
+
+#         # 1) 원본 이미지
+#         if assets["root_original"]:
+#             img = build_direct_display(assets["root_original"])
+#             if img is not None:
+#                 review_items.append(img)
+#                 review_captions.append("원본 이미지")
+
+#         # 2) 원본 이미지 + 노드 강조
+#         overlay_img = build_overlay_on_full_image(record, node_id)
+#         if overlay_img is not None:
+#             review_items.append(overlay_img)
+#             review_captions.append(f"<{leaf}> 오버레이")
+
+#         # 3) 노드 영역 원본
+#         if assets["mask_original"]:
+#             img = build_mask_original_display(record, node_id, assets["mask_original"])
+#             if img is not None:
+#                 review_items.append(img)
+#                 review_captions.append(f"<{leaf}> 원본")
+
+#         # 4) 노드 마스크
+#         if assets["mask"]:
+#             img = build_direct_display(assets["mask"])
+#             if img is not None:
+#                 review_items.append(img)
+#                 review_captions.append(f"<{leaf}> 마스크")
+
+#         if review_items:
+#             # st.image(review_items, caption=review_captions, width="content")
+#             st.image(review_items, caption=review_captions, width=320)
+#         else:
+#             st.info("노드 검토용 이미지를 찾지 못했습니다.")
+
+#     with tabs[1]:
+#         if assets["instances"]:
+#             imgs: List[Image.Image] = []
+#             caps: List[str] = []
+#             for i, p in enumerate(assets["instances"], start=1):
+#                 img = build_direct_display(p)
+#                 if img is not None:
+#                     imgs.append(img)
+#                     caps.append(f"{leaf} #{i}")
+
+#             if imgs:
+#                 # st.image(imgs, caption=caps, width="content")
+#                 st.image(imgs, caption=caps, width=320)
+#             else:
+#                 st.info("인스턴스 마스크 이미지를 읽지 못했습니다.")
+#         else:
+#             st.info("인스턴스 마스크가 없습니다.")
 def render_asset_panel(record: Dict[str, Any], node_id: str) -> None:
     render_visual_header(record, node_id)
 
     assets = node_assets(record, node_id)
     leaf = human_label(node_id)
 
-    tabs = st.tabs(["기본", "인스턴스"])
+    # 기본 이미지만 바로 표시
+    review_items: List[Image.Image] = []
+    review_captions: List[str] = []
 
-    with tabs[0]:
-        review_items: List[Image.Image] = []
-        review_captions: List[str] = []
+    # 1) 원본 이미지
+    if assets["root_original"]:
+        img = build_direct_display(assets["root_original"])
+        if img is not None:
+            review_items.append(img)
+            review_captions.append("원본 이미지")
 
-        # 1) 원본 이미지
-        if assets["root_original"]:
-            img = build_direct_display(assets["root_original"])
-            if img is not None:
-                review_items.append(img)
-                review_captions.append("원본 이미지")
+    # 2) 원본 이미지 + 노드 강조
+    overlay_img = build_overlay_on_full_image(record, node_id)
+    if overlay_img is not None:
+        review_items.append(overlay_img)
+        review_captions.append(f"<{leaf}> 오버레이")
 
-        # 2) 원본 이미지 + 노드 강조
-        overlay_img = build_overlay_on_full_image(record, node_id)
-        if overlay_img is not None:
-            review_items.append(overlay_img)
-            review_captions.append(f"<{leaf}> 오버레이")
+    # 3) 노드 영역 원본
+    if assets["mask_original"]:
+        img = build_mask_original_display(record, node_id, assets["mask_original"])
+        if img is not None:
+            review_items.append(img)
+            review_captions.append(f"<{leaf}> 원본")
 
-        # 3) 노드 영역 원본
-        if assets["mask_original"]:
-            img = build_mask_original_display(record, node_id, assets["mask_original"])
-            if img is not None:
-                review_items.append(img)
-                review_captions.append(f"<{leaf}> 원본")
+    # 4) 노드 마스크
+    if assets["mask"]:
+        img = build_direct_display(assets["mask"])
+        if img is not None:
+            review_items.append(img)
+            review_captions.append(f"<{leaf}> 마스크")
 
-        # 4) 노드 마스크
-        if assets["mask"]:
-            img = build_direct_display(assets["mask"])
-            if img is not None:
-                review_items.append(img)
-                review_captions.append(f"<{leaf}> 마스크")
+    if review_items:
+        st.image(review_items, caption=review_captions, width=320)
+    else:
+        st.info("노드 검토용 이미지를 찾지 못했습니다.")
 
-        if review_items:
-            # st.image(review_items, caption=review_captions, width="content")
-            st.image(review_items, caption=review_captions, width=320)
-        else:
-            st.info("노드 검토용 이미지를 찾지 못했습니다.")
+    # 인스턴스 이미지는 필요할 때만 열기
+    show_instances = st.toggle(
+        "인스턴스 보기",
+        value=False,
+        key=f"show_instances_{record['image_id']}_{node_id}",
+    )
 
-    with tabs[1]:
+    if show_instances:
         if assets["instances"]:
             imgs: List[Image.Image] = []
             caps: List[str] = []
+
             for i, p in enumerate(assets["instances"], start=1):
                 img = build_direct_display(p)
                 if img is not None:
@@ -1801,13 +1899,11 @@ def render_asset_panel(record: Dict[str, Any], node_id: str) -> None:
                     caps.append(f"{leaf} #{i}")
 
             if imgs:
-                # st.image(imgs, caption=caps, width="content")
                 st.image(imgs, caption=caps, width=320)
             else:
                 st.info("인스턴스 마스크 이미지를 읽지 못했습니다.")
         else:
             st.info("인스턴스 마스크가 없습니다.")
-
 # Rendering: detail
 
 def render_question_block(
@@ -1928,18 +2024,15 @@ def render_node_detail(record: Optional[Dict[str, Any]]) -> None:
         st.info("가운데 tree에서 node를 선택하세요.")
         return
 
-    show_hierarchy = st.toggle("Hierarchy view 보기", value=False, key=f"show_hier_{image_id}")
-    if show_hierarchy:
-        render_experimental_tree_panel(record)
+    render_experimental_tree_panel(record)
 
-    # hierarchy 클릭 이후 최신 selected_node_id를 다시 읽는다
     node_id = st.session_state.selected_node_id
     if not node_id:
         st.info("노드를 선택하세요.")
         return
 
-    render_asset_panel(record, node_id)
     render_question_block(image_id, "node", node_questions_for(node_id), title="노드 질문", node_id=node_id)
+    render_asset_panel(record, node_id)
     render_finalize_box(record)
 
 
@@ -1953,7 +2046,20 @@ def render_finalize_box(record: Dict[str, Any]) -> None:
     if not missing_node_ids and not has_tree_missing:
         return
 
-    st.markdown(f"####남은 항목")
+    st.markdown(
+        """
+        <div style="
+            font-size: 30px;
+            font-weight: 700;
+            margin-top: 12px;
+            margin-bottom: 6px;
+        ">
+            남은 항목
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    
     pills: List[str] = [
         f"<span class='finalize-pill'>{human_label(node_id)}</span>"
         for node_id in missing_node_ids
