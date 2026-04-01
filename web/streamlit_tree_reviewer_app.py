@@ -430,8 +430,16 @@ def ensure_image_blob_cache(image_id: str) -> Dict[str, bytes]:
         st.session_state["blob_cache"] = {}
     return st.session_state["blob_cache"]
 
+# def download_blob(storage_path: str) -> bytes:
+#     return get_supabase_client().storage.from_(dataset_bucket_name()).download(storage_path)
+
 def download_blob(storage_path: str) -> bytes:
-    return get_supabase_client().storage.from_(dataset_bucket_name()).download(storage_path)
+    try:
+        return get_supabase_client().storage.from_(dataset_bucket_name()).download(storage_path)
+    except Exception as e:
+        st.error(f"다운로드 실패: {storage_path}")
+        st.error(str(e))
+        raise
 
 def get_blob(image_id: str, storage_path: str) -> bytes:
     cache = ensure_image_blob_cache(image_id)
@@ -1613,6 +1621,7 @@ def render_visual_header(record: Dict[str, Any], node_id: str) -> None:
     )
     
 def render_asset_panel(record: Dict[str, Any], node_id: str) -> None:
+    st.write("DEBUG assets:", assets)
     render_visual_header(record, node_id)
 
     assets = node_assets(record, node_id)
