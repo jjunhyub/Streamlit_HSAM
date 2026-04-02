@@ -88,6 +88,13 @@ def tree_display_children(record: Dict[str, Any], node_id: str) -> List[str]:
             out.append(child_id)
     return out
 
+def display_root_ids(record: Dict[str, Any]) -> List[str]:
+    roots = list(record["roots"])
+    if not roots:
+        return [TREE_SUMMARY_NODE_ID]
+
+    return [roots[0], TREE_SUMMARY_NODE_ID] + roots[1:]
+
 # File / image helper
 
 def load_json(path: Path) -> Dict[str, Any]:
@@ -540,8 +547,11 @@ def compute_hierarchy_layout_cached(record_sig: str) -> Dict[str, Any]:
 
     def is_reviewable(node_id: str) -> bool:
         return human_label_from_id(node_id).lower() != "others"
-
+    
     def tree_children(node_id: str) -> List[str]:
+        if node_id == TREE_SUMMARY_NODE_ID:
+            return []
+
         out = []
         for child_id in record["nodes"][node_id]["children"]:
             child_node = record["nodes"][child_id]
@@ -552,7 +562,11 @@ def compute_hierarchy_layout_cached(record_sig: str) -> Dict[str, Any]:
         return out
 
     def button_width(node_id: str) -> int:
-        label = human_label_from_id(node_id)
+        if node_id == TREE_SUMMARY_NODE_ID:
+            label = "전체평가"
+        else:
+            label = human_label_from_id(node_id)
+
         width = TREE_BUTTON_BASE_PX + TREE_CHAR_WIDTH_PX * len(label)
         return int(max(TREE_BUTTON_MIN_WIDTH_PX, min(TREE_BUTTON_MAX_WIDTH_PX, width)))
 
@@ -585,7 +599,8 @@ def compute_hierarchy_layout_cached(record_sig: str) -> Dict[str, Any]:
             if idx < len(children) - 1:
                 child_left += TREE_SIBLING_GAP_PX
 
-    root_ids = record["roots"]
+    # root_ids = record["roots"]
+    root_ids = display_root_ids(record)
     if not root_ids:
         return {"rows": [], "node_lefts": {}, "node_widths": {}, "tree_width": 0.0}
 
@@ -771,7 +786,8 @@ def compute_hierarchy_layout(record: Dict[str, Any]) -> Dict[str, Any]:
             if idx < len(children) - 1:
                 child_left += TREE_SIBLING_GAP_PX
 
-    root_ids = record["roots"]
+    # root_ids = record["roots"]
+    root_ids = display_root_ids(record)
     if not root_ids:
         return {
             "rows": [],
@@ -1772,11 +1788,12 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
                                 st.empty()
                                 continue
 
+                            # special root node: 전체트리
                             if node_id == TREE_SUMMARY_NODE_ID:
                                 label = "전체트리"
-                                selected = tree_selected
-                                done = tree_done
-                                is_clickable = tree_enabled
+                                selected = st.session_state.selected_mode == "tree"
+                                done = tree_summary_confirmed(record["image_id"])
+                                is_clickable = all_nodes_confirmed(record["image_id"], record)
 
                                 button_key = safe_token(
                                     f"exp_tree_btn__{record['image_id']}__tree_summary__r{row_idx}__p{part_idx}"
@@ -1800,6 +1817,7 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
 
                                 continue
 
+                            # 일반 노드
                             is_actual = record["nodes"][node_id]["actual"]
                             is_reviewable = is_reviewable_node(node_id)
                             is_clickable = is_actual and is_reviewable
