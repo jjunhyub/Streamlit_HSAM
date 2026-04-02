@@ -36,7 +36,7 @@ TREE_SIDE_PAD_PX = 10 # 옆으로 얼마나 갈건지
 
 TREE_ROW_HEIGHT_PX = 50
 TREE_ROW_GAP_PX = 30
-TREE_PANEL_TOP_PAD_PX = 2
+TREE_PANEL_TOP_PAD_PX = 0
 
 # Fixed path
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -1394,7 +1394,7 @@ def inject_hierarchy_panel_style(panel_key: str) -> None:
             position: relative;
             overflow-x: auto;
             overflow-y: hidden;
-            padding: 0 !important;
+            padding: 0 0 10px 0 !important;
             margin: 0 !important;
             border: 1px solid rgba(148,163,184,0.22);
             border-radius: 12px;
@@ -1688,16 +1688,11 @@ def render_tree_node(record: Dict[str, Any], node_id: str, depth: int) -> None:
         render_tree_node(record, child_id, depth + 1)
 
 # Rendering: hierarchy
-    
 def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
     if record is None:
         return
 
-    # layout = compute_hierarchy_layout(record)
-    # rows = layout["rows"]
-    # node_lefts = layout["node_lefts"]
-    # node_widths = layout["node_widths"]
-    # tree_width = layout["tree_width"]
+    image_id = record["image_id"]
 
     record_sig = record_structure_signature(record)
     layout = compute_hierarchy_layout_cached(record_sig)
@@ -1709,23 +1704,41 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
     if not rows:
         return
 
-    st.markdown("#### Hierarchy View (Experimental)")
+    st.markdown("#### Hierarchy View")
+
+    # 전체 트리 질문 상태
+    tree_done = tree_summary_confirmed(image_id)
+    tree_enabled = all_nodes_confirmed(image_id, record)
+    tree_selected = st.session_state.selected_mode == "tree"
+
+    ctrl_key = safe_token(f"hier_tree_ctrl__{image_id}")
+    inject_box_style(
+        ctrl_key,
+        selected=tree_selected,
+        done=tree_done,
+        muted=not tree_enabled,
+    )
+
+    with st.container(key=ctrl_key):
+        if st.button(
+            f"{'🟦' if tree_done else '⬜'} 전체 트리 질문",
+            key=f"hier_open_tree_summary_{image_id}",
+            use_container_width=True,
+            disabled=not tree_enabled,
+        ):
+            st.session_state.selected_mode = "tree"
+            st.session_state.selected_node_id = None
+            st.rerun()
+
+        if not tree_enabled:
+            st.caption("모든 노드를 완료해야 활성화됩니다.")
+
     with st.container():
         panel_key = safe_token(f"hier_panel__{record['image_id']}")
         inject_hierarchy_panel_style(panel_key)
         inject_hierarchy_compact_css(panel_key)
 
         with st.container(key=panel_key):
-            # 1) SVG를 먼저 깐다
-            # svg_html = build_tree_connector_svg(
-            #     record=record,
-            #     rows=rows,
-            #     node_lefts=node_lefts,
-            #     node_widths=node_widths,
-            #     tree_width=tree_width,
-            # )
-            # st.markdown(svg_html, unsafe_allow_html=True)
-
             node_children_map = {nid: record["nodes"][nid]["children"] for nid in record["nodes"]}
             node_actual_map = {nid: record["nodes"][nid]["actual"] for nid in record["nodes"]}
 
@@ -1740,8 +1753,6 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
             )
             st.markdown(svg_html, unsafe_allow_html=True)
 
-
-            # 2) 그 위에 row 버튼들을 올린다
             for row_idx, row in enumerate(rows):
                 parts = build_row_parts_from_layout(
                     row=row,
@@ -2035,7 +2046,7 @@ def render_question_block(
 
     sync_questions_to_bucket(image_id, mode, visible_questions, node_id=node_id)
     maybe_autosave_to_supabase()
-    
+
 def render_node_detail(record: Optional[Dict[str, Any]]) -> None:
     if record is None:
         st.info("데이터를 찾지 못했습니다.")
@@ -2044,23 +2055,31 @@ def render_node_detail(record: Optional[Dict[str, Any]]) -> None:
     image_id = record["image_id"]
     selected_mode = st.session_state.selected_mode
 
+    # 항상 hierarchy view를 먼저 보여준다
+    render_experimental_tree_panel(record)
+
     if selected_mode == "tree":
         st.subheader("Inspector")
         st.markdown(
             f"<div class='section-card'><b>{image_id}</b><br/>전체 트리 질문 화면입니다.</div>",
             unsafe_allow_html=True,
         )
-        render_question_block(image_id, "tree", tree_questions_for(image_id), title="전체 트리 질문")
+        render_question_block(
+            image_id,
+            "tree",
+            tree_questions_for(image_id),
+            title="전체 트리 질문",
+        )
         render_finalize_box(record)
         return
 
-    if not st.session_state.selected_node_id:
-        st.info("가운데 tree에서 node를 선택하세요.")
-        return
-
-    render_experimental_tree_panel(record)
-
     node_id = st.session_state.selected_node_id
+
+    if (not node_id) or (node_id not in record["nodes"]):
+        fallback_node_id = first_reviewable_node_id(record)
+        st.session_state.selected_node_id = fallback_node_id
+        node_id = fallback_node_id
+
     if not node_id:
         st.info("노드를 선택하세요.")
         return
@@ -2303,8 +2322,8 @@ def main() -> None:
     # col_left, col_right = st.columns([0.5, 3])
     with col_left:
         render_image_list(records)
-    with col_mid:
-        render_tree_panel(selected_record)
+    # with col_mid:
+    #     render_tree_panel(selected_record)
     with col_right:
         render_node_detail(selected_record)
 
