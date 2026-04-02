@@ -31,6 +31,9 @@ TREE_BUTTON_BASE_PX = 30
 TREE_CHAR_WIDTH_PX = 6
 TREE_BUTTON_HEIGHT_PX = 30
 TREE_CONNECTOR_MARGIN_PX = 4
+TREE_BUTTON_HEIGHT_PX = 30
+TREE_CONNECTOR_STUB_PX = 8
+TREE_CONNECTOR_RADIUS_PX = 8
 
 TREE_SIBLING_GAP_PX = 0 # 자식끼리의 간격
 TREE_ROOT_GAP_PX = 1 # 루트끼리의 GAP
@@ -644,7 +647,6 @@ def compute_hierarchy_layout_cached(record_sig: str) -> Dict[str, Any]:
         "node_widths": node_widths,
         "tree_width": total_width,
     }
-
 @st.cache_data(show_spinner=False)
 def build_tree_connector_svg_cached(
     image_id: str,
@@ -662,8 +664,11 @@ def build_tree_connector_svg_cached(
         return human_label(node_id).lower() != "others"
 
     def tree_children(node_id: str) -> List[str]:
-        out = []
-        for child_id in node_children_map.get(node_id, []):
+        if node_id == TREE_SUMMARY_NODE_ID:
+            return []
+
+        out: List[str] = []
+        for child_id in node_children_map.get(node_id, []) or []:
             child_actual = node_actual_map.get(child_id, False)
             if child_actual and not is_reviewable(child_id):
                 out.extend(tree_children(child_id))
@@ -677,37 +682,48 @@ def build_tree_connector_svg_cached(
         + max(0, len(rows) - 1) * TREE_ROW_GAP_PX
     )
 
+    def row_top_y(row_idx: int) -> float:
+        return (
+            TREE_PANEL_TOP_PAD_PX
+            + row_idx * (TREE_ROW_HEIGHT_PX + TREE_ROW_GAP_PX)
+        )
 
     def button_top_y(row_idx: int) -> float:
         return row_top_y(row_idx) + (TREE_ROW_HEIGHT_PX - TREE_BUTTON_HEIGHT_PX) / 2.0
 
     def button_bottom_y(row_idx: int) -> float:
         return button_top_y(row_idx) + TREE_BUTTON_HEIGHT_PX
-    
-    def row_top_y(row_idx: int) -> float:
-        return TREE_PANEL_TOP_PAD_PX + row_idx * (TREE_ROW_HEIGHT_PX + TREE_ROW_GAP_PX)
-
-    def row_center_y(row_idx: int) -> float:
-        return (
-            TREE_PANEL_TOP_PAD_PX
-            + row_idx * (TREE_ROW_HEIGHT_PX + TREE_ROW_GAP_PX)
-            + TREE_ROW_HEIGHT_PX / 2.0
-        )
 
     def node_center_x(node_id: str) -> float:
         return node_lefts[node_id] + node_widths[node_id] / 2.0
 
-    strokes = []
+    def rounded_elbow_path(x1: float, y1: float, x2: float, y2: float, r: float) -> str:
+        # 거의 수직이면 그냥 직선
+        if abs(x2 - x1) < 1.0:
+            return f"M {x1:.1f} {y1:.1f} V {y2:.1f}"
+
+        mid_y = (y1 + y2) / 2.0
+        r = min(r, abs(y2 - y1) / 2.0, abs(x2 - x1) / 2.0)
+        dir_x = 1 if x2 > x1 else -1
+
+        return (
+            f"M {x1:.1f} {y1:.1f} "
+            f"V {mid_y - r:.1f} "
+            f"Q {x1:.1f} {mid_y:.1f} {x1 + dir_x * r:.1f} {mid_y:.1f} "
+            f"H {x2 - dir_x * r:.1f} "
+            f"Q {x2:.1f} {mid_y:.1f} {x2:.1f} {mid_y + r:.1f} "
+            f"V {y2:.1f}"
+        )
+
+    strokes: List[str] = []
 
     for row_idx, parent_row in enumerate(rows[:-1]):
         child_row = rows[row_idx + 1]
-        parent_y = row_center_y(row_idx)
-        child_y = row_center_y(row_idx + 1)
-        parent_anchor_y = button_bottom_y(row_idx) + TREE_CONNECTOR_MARGIN_PX
-        child_anchor_y = button_top_y(row_idx + 1) - TREE_CONNECTOR_MARGIN_PX
-        bus_y = (parent_anchor_y + child_anchor_y) / 2.0
-        # bus_y = child_y - TREE_ROW_HEIGHT_PX / 2.0 - 6.0
         child_set = set(child_row)
+
+        parent_stub_y = button_bottom_y(row_idx) + TREE_CONNECTOR_STUB_PX
+        child_stub_y = button_top_y(row_idx + 1) - TREE_CONNECTOR_STUB_PX
+        bus_y = (parent_stub_y + child_stub_y) / 2.0
 
         for parent_id in parent_row:
             children = [c for c in tree_children(parent_id) if c in child_set]
@@ -716,11 +732,29 @@ def build_tree_connector_svg_cached(
 
             px = node_center_x(parent_id)
 
+            # parent 버튼 아래에서 stub까지
+            strokes.append(
+                f"<path d='M {px:.1f} {button_bottom_y(row_idx):.1f} "
+                f"V {parent_stub_y:.1f}' />"
+            )
+
             if len(children) == 1:
                 cx = node_center_x(children[0])
+
+                # stub 끝점들 사이를 rounded orthogonal path로 연결
+                path_d = rounded_elbow_path(
+                    px,
+                    parent_stub_y,
+                    cx,
+                    child_stub_y,
+                    TREE_CONNECTOR_RADIUS_PX,
+                )
+                strokes.append(f"<path d='{path_d}' />")
+
+                # child stub -> 버튼 위
                 strokes.append(
-                    f"<line x1='{px:.1f}' y1='{parent_y + TREE_ROW_HEIGHT_PX/2 - 6:.1f}' "
-                    f"x2='{cx:.1f}' y2='{child_y - TREE_ROW_HEIGHT_PX/2 + 6:.1f}' />"
+                    f"<path d='M {cx:.1f} {child_stub_y:.1f} "
+                    f"V {button_top_y(row_idx + 1):.1f}' />"
                 )
                 continue
 
@@ -728,18 +762,31 @@ def build_tree_connector_svg_cached(
             left_x = min(child_centers)
             right_x = max(child_centers)
 
+            # parent stub -> bus
             strokes.append(
-                f"<line x1='{px:.1f}' y1='{parent_y + TREE_ROW_HEIGHT_PX/2 - 6:.1f}' "
-                f"x2='{px:.1f}' y2='{bus_y:.1f}' />"
+                f"<path d='M {px:.1f} {parent_stub_y:.1f} "
+                f"V {bus_y:.1f}' />"
             )
+
+            # sibling bus
             strokes.append(
-                f"<line x1='{left_x:.1f}' y1='{bus_y:.1f}' "
-                f"x2='{right_x:.1f}' y2='{bus_y:.1f}' />"
+                f"<path d='M {left_x:.1f} {bus_y:.1f} "
+                f"H {right_x:.1f}' />"
             )
+
+            # 각 child로 rounded 연결 + child stub
             for cx in child_centers:
+                path_d = rounded_elbow_path(
+                    cx,
+                    bus_y,
+                    cx,
+                    child_stub_y,
+                    TREE_CONNECTOR_RADIUS_PX,
+                )
+                strokes.append(f"<path d='{path_d}' />")
                 strokes.append(
-                    f"<line x1='{cx:.1f}' y1='{bus_y:.1f}' "
-                    f"x2='{cx:.1f}' y2='{child_y - TREE_ROW_HEIGHT_PX/2 + 6:.1f}' />"
+                    f"<path d='M {cx:.1f} {child_stub_y:.1f} "
+                    f"V {button_top_y(row_idx + 1):.1f}' />"
                 )
 
     return f"""
@@ -750,13 +797,18 @@ def build_tree_connector_svg_cached(
         viewBox="0 0 {int(math.ceil(tree_width))} {int(math.ceil(svg_height))}"
         xmlns="http://www.w3.org/2000/svg"
         style="position:absolute; left:0; top:0; z-index:0; pointer-events:none; overflow:visible;">
-        <g stroke="rgba(148,163,184,0.55)" stroke-width="2" fill="none" stroke-linecap="round">
+        <g
+            stroke="rgba(148,163,184,0.38)"
+            stroke-width="1.5"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round">
             {''.join(strokes)}
         </g>
     </svg>
     </div>
     """
-
+    
 def inject_tree_summary_node(record: Dict[str, Any]) -> Dict[str, Any]:
     record = json.loads(json.dumps(record))  # deepcopy
 
