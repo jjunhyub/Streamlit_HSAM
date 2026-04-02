@@ -91,6 +91,7 @@ def tree_display_children(record: Dict[str, Any], node_id: str) -> List[str]:
             out.append(child_id)
     return out
 
+
 def display_root_ids(record: Dict[str, Any]) -> List[str]:
     roots = list(record["roots"])
     if not roots:
@@ -550,6 +551,19 @@ def compute_hierarchy_layout_cached(record_sig: str) -> Dict[str, Any]:
     def is_reviewable(node_id: str) -> bool:
         return human_label_from_id(node_id).lower() != "others"
     
+    # def tree_children(node_id: str) -> List[str]:
+    #     if node_id == TREE_SUMMARY_NODE_ID:
+    #         return []
+
+    #     out = []
+    #     for child_id in record["nodes"][node_id]["children"]:
+    #         child_node = record["nodes"][child_id]
+    #         if child_node["actual"] and not is_reviewable(child_id):
+    #             out.extend(tree_children(child_id))
+    #         else:
+    #             out.append(child_id)
+    #     return
+
     def tree_children(node_id: str) -> List[str]:
         if node_id == TREE_SUMMARY_NODE_ID:
             return []
@@ -561,7 +575,7 @@ def compute_hierarchy_layout_cached(record_sig: str) -> Dict[str, Any]:
                 out.extend(tree_children(child_id))
             else:
                 out.append(child_id)
-        return
+        return out
 
     def button_width(node_id: str) -> int:
         if node_id == TREE_SUMMARY_NODE_ID:
