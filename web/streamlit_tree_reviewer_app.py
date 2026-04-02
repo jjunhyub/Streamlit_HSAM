@@ -774,29 +774,29 @@ def build_tree_connector_svg_cached(
                 f"H {right_x:.1f}' />"
             )
 
-            # # 각 child로 rounded 연결 + child stub
-            # for cx in child_centers:
-            #     path_d = rounded_elbow_path(
-            #         cx,
-            #         bus_y,
-            #         cx,
-            #         child_stub_y,
-            #         TREE_CONNECTOR_RADIUS_PX,
-            #     )
-            #     strokes.append(f"<path d='{path_d}' />")
-            #     strokes.append(
-            #         f"<path d='M {cx:.1f} {child_stub_y:.1f} "
-            #         f"V {button_top_y(row_idx + 1):.1f}' />"
-            #     )
+            # 각 child로 rounded 연결 + child stub
             for cx in child_centers:
-                strokes.append(
-                    f"<path d='M {cx:.1f} {bus_y:.1f} "
-                    f"V {child_stub_y:.1f}' />"
+                path_d = rounded_elbow_path(
+                    cx,
+                    bus_y,
+                    cx,
+                    child_stub_y,
+                    TREE_CONNECTOR_RADIUS_PX,
                 )
+                strokes.append(f"<path d='{path_d}' />")
                 strokes.append(
                     f"<path d='M {cx:.1f} {child_stub_y:.1f} "
                     f"V {button_top_y(row_idx + 1):.1f}' />"
                 )
+            # for cx in child_centers:
+            #     strokes.append(
+            #         f"<path d='M {cx:.1f} {bus_y:.1f} "
+            #         f"V {child_stub_y:.1f}' />"
+            #     )
+            #     strokes.append(
+            #         f"<path d='M {cx:.1f} {child_stub_y:.1f} "
+            #         f"V {button_top_y(row_idx + 1):.1f}' />"
+            #     )
 
     return f"""
     <div style="position:relative; height:0; overflow:visible; pointer-events:none;">
