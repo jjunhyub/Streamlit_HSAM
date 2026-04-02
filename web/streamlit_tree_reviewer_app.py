@@ -29,6 +29,8 @@ TREE_BUTTON_MIN_WIDTH_PX = 10
 TREE_BUTTON_MAX_WIDTH_PX = 220
 TREE_BUTTON_BASE_PX = 30
 TREE_CHAR_WIDTH_PX = 6
+TREE_BUTTON_HEIGHT_PX = 30
+TREE_CONNECTOR_MARGIN_PX = 4
 
 TREE_SIBLING_GAP_PX = 0 # 자식끼리의 간격
 TREE_ROOT_GAP_PX = 1 # 루트끼리의 GAP
@@ -59,6 +61,7 @@ def now_iso():
     return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 # Tree helper
+
 
 def get_node_depth(node_id: str) -> int:
     return max(0, node_id.count("__"))
@@ -558,7 +561,7 @@ def compute_hierarchy_layout_cached(record_sig: str) -> Dict[str, Any]:
                 out.extend(tree_children(child_id))
             else:
                 out.append(child_id)
-        return out
+        return
 
     def button_width(node_id: str) -> int:
         if node_id == TREE_SUMMARY_NODE_ID:
@@ -660,6 +663,16 @@ def build_tree_connector_svg_cached(
         + max(0, len(rows) - 1) * TREE_ROW_GAP_PX
     )
 
+
+    def button_top_y(row_idx: int) -> float:
+        return row_top_y(row_idx) + (TREE_ROW_HEIGHT_PX - TREE_BUTTON_HEIGHT_PX) / 2.0
+
+    def button_bottom_y(row_idx: int) -> float:
+        return button_top_y(row_idx) + TREE_BUTTON_HEIGHT_PX
+    
+    def row_top_y(row_idx: int) -> float:
+        return TREE_PANEL_TOP_PAD_PX + row_idx * (TREE_ROW_HEIGHT_PX + TREE_ROW_GAP_PX)
+
     def row_center_y(row_idx: int) -> float:
         return (
             TREE_PANEL_TOP_PAD_PX
@@ -676,7 +689,10 @@ def build_tree_connector_svg_cached(
         child_row = rows[row_idx + 1]
         parent_y = row_center_y(row_idx)
         child_y = row_center_y(row_idx + 1)
-        bus_y = child_y - TREE_ROW_HEIGHT_PX / 2.0 - 6.0
+        parent_anchor_y = button_bottom_y(row_idx) + TREE_CONNECTOR_MARGIN_PX
+        child_anchor_y = button_top_y(row_idx + 1) - TREE_CONNECTOR_MARGIN_PX
+        bus_y = (parent_anchor_y + child_anchor_y) / 2.0
+        # bus_y = child_y - TREE_ROW_HEIGHT_PX / 2.0 - 6.0
         child_set = set(child_row)
 
         for parent_id in parent_row:
