@@ -1613,7 +1613,7 @@ def render_image_list(records: Dict[str, Any]) -> None:
                     st.session_state.selected_mode = "node"
                     first_node = first_reviewable_node_id(records[image_id])
                     st.session_state.selected_node_id = first_node
-                    # st.rerun()
+                    st.rerun()
                 progress = (done / total * 100) if total > 0 else 0
                 st.caption(f"노드 진행률: {done}/{total} • {progress:.1f}% 완료")
                 
@@ -2303,8 +2303,8 @@ def main() -> None:
     col_left, col_right = st.columns([0.5, 3])
     with col_left:
         render_image_list(records)
-    # with col_mid:
-    #     render_tree_panel(selected_record)
+    with col_mid:
+        render_tree_panel(selected_record)
     with col_right:
         render_node_detail(selected_record)
 
