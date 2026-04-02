@@ -586,7 +586,8 @@ def compute_hierarchy_layout_cached(record_sig: str) -> Dict[str, Any]:
         return subtree_width
 
     def place(node_id: str, left_x: float, depth: int) -> None:
-        node_lefts[node_id] = left_x
+        # node_lefts[node_id] = left_x
+        node_lefts[node_id] = left_x + (subtree_widths[node_id] - node_widths[node_id]) / 2.0
         rows_by_depth.setdefault(depth, []).append(node_id)
         children = tree_children(node_id)
         if not children:
