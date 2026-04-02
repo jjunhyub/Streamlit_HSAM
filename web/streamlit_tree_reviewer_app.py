@@ -2299,8 +2299,8 @@ def main() -> None:
     #         st.session_state["prefetched_image_ids"] = prefetched
 
 
-    # col_left, col_mid, col_right = st.columns([0.5, 0.5, 3])
-    col_left, col_right = st.columns([0.5, 3])
+    col_left, col_mid, col_right = st.columns([0.5, 0.5, 3])
+    # col_left, col_right = st.columns([0.5, 3])
     with col_left:
         render_image_list(records)
     with col_mid:
