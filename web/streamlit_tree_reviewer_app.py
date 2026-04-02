@@ -2161,7 +2161,7 @@ def render_reviewer_gate() -> None:
         unsafe_allow_html=True,
     )
 
-    left, center, right = st.columns([2.6, 1.5, 2.6])
+    left, center, right = st.columns([2.6, 1.3, 2.6])
     with center:
         reviewer_input = st.text_input(
             "Reviewer ID",
@@ -2289,21 +2289,21 @@ def main() -> None:
             st.session_state.selected_node_id = first_reviewable_node_id(selected_record)
 
 
-    if selected_record:
-        prefetched = st.session_state.get("prefetched_image_ids", [])
-        image_id = selected_record["image_id"]
+    # if selected_record:
+    #     prefetched = st.session_state.get("prefetched_image_ids", [])
+    #     image_id = selected_record["image_id"]
 
-        if image_id not in prefetched:
-            prefetch_image_assets(selected_record, include_instances=False)
-            prefetched.append(image_id)
-            st.session_state["prefetched_image_ids"] = prefetched
+    #     if image_id not in prefetched:
+    #         prefetch_image_assets(selected_record, include_instances=False)
+    #         prefetched.append(image_id)
+    #         st.session_state["prefetched_image_ids"] = prefetched
 
 
     col_left, col_mid, col_right = st.columns([0.5, 0.5, 3])
     with col_left:
         render_image_list(records)
-    with col_mid:
-        render_tree_panel(selected_record)
+    # with col_mid:
+    #     render_tree_panel(selected_record)
     with col_right:
         render_node_detail(selected_record)
 
