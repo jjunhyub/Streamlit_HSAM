@@ -2161,7 +2161,7 @@ def render_reviewer_gate() -> None:
         unsafe_allow_html=True,
     )
 
-    left, center, right = st.columns([2.6, 1.3, 2.6])
+    left, center, right = st.columns([2.6, 1.5, 2.6])
     with center:
         reviewer_input = st.text_input(
             "Reviewer ID",
@@ -2299,7 +2299,8 @@ def main() -> None:
     #         st.session_state["prefetched_image_ids"] = prefetched
 
 
-    col_left, col_mid, col_right = st.columns([0.5, 0.5, 3])
+    # col_left, col_mid, col_right = st.columns([0.5, 0.5, 3])
+    col_left, col_right = st.columns([0.5, 3])
     with col_left:
         render_image_list(records)
     # with col_mid:
