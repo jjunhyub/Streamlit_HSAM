@@ -1753,7 +1753,10 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
                 )
 
                 if row_idx == 0:
-                    parts = [("button", tree_summary_width, TREE_SUMMARY_NODE_ID)] + parts
+                    if parts:
+                        parts = [parts[0], ("spacer", 16, None), ("button", tree_summary_width, TREE_SUMMARY_NODE_ID)] + parts[1:]
+                    else:
+                        parts = [("button", tree_summary_width, TREE_SUMMARY_NODE_ID)]
 
                 spec = [max(1.0, width_px) for _, width_px, _ in parts]
 
