@@ -31,7 +31,7 @@ TREE_BUTTON_BASE_PX = 30
 TREE_CHAR_WIDTH_PX = 6
 
 TREE_SIBLING_GAP_PX = 0 # 자식끼리의 간격
-TREE_ROOT_GAP_PX = 50 # 루트끼리의 GAP
+TREE_ROOT_GAP_PX = 100 # 루트끼리의 GAP
 TREE_SIDE_PAD_PX = 10 # 옆으로 얼마나 갈건지
 
 TREE_ROW_HEIGHT_PX = 50
@@ -726,6 +726,23 @@ def build_tree_connector_svg_cached(
     </svg>
     </div>
     """
+
+def inject_tree_summary_node(record: Dict[str, Any]) -> Dict[str, Any]:
+    record = json.loads(json.dumps(record))  # deepcopy
+
+    if TREE_SUMMARY_NODE_ID not in record["nodes"]:
+        record["nodes"][TREE_SUMMARY_NODE_ID] = {
+            "id": TREE_SUMMARY_NODE_ID,
+            "label": "전체트리",
+            "parent": None,
+            "children": [],
+            "actual": True,
+        }
+
+    if TREE_SUMMARY_NODE_ID not in record["roots"]:
+        record["roots"] = [TREE_SUMMARY_NODE_ID] + record["roots"]
+
+    return record
 
 def record_structure_signature(record: Dict[str, Any]) -> str:
     payload = {
@@ -1714,7 +1731,10 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
 
     image_id = record["image_id"]
 
-    record_sig = record_structure_signature(record)
+    # record_sig = record_structure_signature(record)
+    record_for_layout = inject_tree_summary_node(record)
+    record_sig = record_structure_signature(record_for_layout)
+
     layout = compute_hierarchy_layout_cached(record_sig)
     rows = layout["rows"]
     node_lefts = layout["node_lefts"]
@@ -1746,7 +1766,10 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
         inject_hierarchy_compact_css(panel_key)
 
         with st.container(key=panel_key):
-            node_children_map = {nid: record["nodes"][nid]["children"] for nid in record["nodes"]}
+            # node_children_map = {nid: record["nodes"][nid]["children"] for nid in record["nodes"]}
+            node_children_map = {nid: record_for_layout["nodes"][nid]["children"] for nid in record_for_layout["nodes"]}
+
+
             node_actual_map = {nid: record["nodes"][nid]["actual"] for nid in record["nodes"]}
 
             svg_html = build_tree_connector_svg_cached(
