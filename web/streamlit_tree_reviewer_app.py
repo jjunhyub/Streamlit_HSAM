@@ -38,6 +38,8 @@ TREE_ROW_HEIGHT_PX = 50
 TREE_ROW_GAP_PX = 30
 TREE_PANEL_TOP_PAD_PX = 0
 
+TREE_SUMMARY_NODE_ID = "__tree_summary__"
+
 # Fixed path
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATASET_ROOT = BASE_DIR / "datasets" / "coco_pilot_v1"
@@ -1172,9 +1174,11 @@ def missing_report(image_id: str, record: Dict[str, Any]) -> Dict[str, Any]:
     return {"missing_nodes": missing_nodes, "tree_missing": tree_missing,}
 
 # Asset lookup
-
 def get_inspector_pills(record: Dict[str, Any], node_id: str) -> List[str]:
-    node = record["nodes"][node_id]
+    node = record["nodes"].get(node_id)
+    if node is None:
+        return ["현재: -", "부모: -", "자식: -", "깊이: -", "경로: -"]
+
     parent_id = node.get("parent")
     depth = get_node_depth(node_id)
 
@@ -1202,7 +1206,7 @@ def get_inspector_pills(record: Dict[str, Any], node_id: str) -> List[str]:
         f"부모: {parent_label}",
         f"자식: {children_text}",
         f"깊이: {depth}",
-        pretty_path,
+        f"경로: {pretty_path}",
     ]
 
 def node_assets(record: Dict[str, Any], node_id: str) -> Dict[str, Any]:
@@ -1701,37 +1705,24 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
     node_widths = layout["node_widths"]
     tree_width = layout["tree_width"]
 
-    if not rows:
-        return
-
-    st.markdown("#### Hierarchy View")
-
-    # 전체 트리 질문 상태
     tree_done = tree_summary_confirmed(image_id)
     tree_enabled = all_nodes_confirmed(image_id, record)
     tree_selected = st.session_state.selected_mode == "tree"
 
-    ctrl_key = safe_token(f"hier_tree_ctrl__{image_id}")
-    inject_box_style(
-        ctrl_key,
-        selected=tree_selected,
-        done=tree_done,
-        muted=not tree_enabled,
+    tree_summary_width = max(
+        TREE_BUTTON_MIN_WIDTH_PX,
+        min(TREE_BUTTON_MAX_WIDTH_PX, TREE_BUTTON_BASE_PX + TREE_CHAR_WIDTH_PX * len("전체트리"))
     )
 
-    with st.container(key=ctrl_key):
-        if st.button(
-            f"{'🟦' if tree_done else '⬜'} 전체 트리 질문",
-            key=f"hier_open_tree_summary_{image_id}",
-            use_container_width=True,
-            disabled=not tree_enabled,
-        ):
-            st.session_state.selected_mode = "tree"
-            st.session_state.selected_node_id = None
-            st.rerun()
+    if not rows:
+        return
+    
+    display_rows = [list(r) for r in rows]
+    if display_rows:
+        display_rows[0] = [TREE_SUMMARY_NODE_ID] + display_rows[0]
 
-        if not tree_enabled:
-            st.caption("모든 노드를 완료해야 활성화됩니다.")
+    st.markdown("#### Hierarchy View")
+
 
     with st.container():
         panel_key = safe_token(f"hier_panel__{record['image_id']}")
@@ -1753,13 +1744,16 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
             )
             st.markdown(svg_html, unsafe_allow_html=True)
 
-            for row_idx, row in enumerate(rows):
+            for row_idx, row in enumerate(display_rows):
                 parts = build_row_parts_from_layout(
-                    row=row,
+                    row=[nid for nid in row if nid != TREE_SUMMARY_NODE_ID],
                     node_lefts=node_lefts,
                     node_widths=node_widths,
                     tree_width=tree_width,
                 )
+
+                if row_idx == 0:
+                    parts = [("button", tree_summary_width, TREE_SUMMARY_NODE_ID)] + parts
 
                 spec = [max(1.0, width_px) for _, width_px, _ in parts]
 
@@ -1773,6 +1767,34 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
                         with col:
                             if kind == "spacer" or node_id is None:
                                 st.empty()
+                                continue
+
+                            if node_id == TREE_SUMMARY_NODE_ID:
+                                label = "전체트리"
+                                selected = tree_selected
+                                done = tree_done
+                                is_clickable = tree_enabled
+
+                                button_key = safe_token(
+                                    f"exp_tree_btn__{record['image_id']}__tree_summary__r{row_idx}__p{part_idx}"
+                                )
+
+                                inject_hierarchy_button_style(
+                                    button_key=button_key,
+                                    selected=selected,
+                                    done=done,
+                                )
+
+                                if st.button(
+                                    label,
+                                    key=button_key,
+                                    use_container_width=True,
+                                    disabled=not is_clickable,
+                                ):
+                                    st.session_state.selected_mode = "tree"
+                                    st.session_state.selected_node_id = None
+                                    st.rerun()
+
                                 continue
 
                             is_actual = record["nodes"][node_id]["actual"]
@@ -2318,8 +2340,8 @@ def main() -> None:
     #         st.session_state["prefetched_image_ids"] = prefetched
 
 
-    col_left, col_mid, col_right = st.columns([0.5, 0.5, 3])
-    # col_left, col_right = st.columns([0.5, 3])
+    # col_left, col_mid, col_right = st.columns([0.5, 0.5, 3])
+    col_left, col_right = st.columns([0.5, 3])
     with col_left:
         render_image_list(records)
     # with col_mid:
