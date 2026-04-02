@@ -950,9 +950,9 @@ def build_row_parts_from_layout(
         parts.append(("button", width_px, node_id))
         prev_end = start_x + width_px
 
-    trailing_width = tree_width - prev_end
-    if trailing_width > 0.5:
-        parts.append(("spacer", trailing_width, None))
+    # trailing_width = tree_width - prev_end
+    # if trailing_width > 0.5:
+    #     parts.append(("spacer", trailing_width, None))
 
     return parts
 
@@ -1724,6 +1724,11 @@ def render_tree_node(record: Dict[str, Any], node_id: str, depth: int) -> None:
         render_tree_node(record, child_id, depth + 1)
 
 # Rendering: hierarchy
+def row_render_width(row: List[str], node_lefts: Dict[str, float], node_widths: Dict[str, float]) -> float:
+    if not row:
+        return TREE_SIDE_PAD_PX * 2
+    last = max(row, key=lambda nid: node_lefts[nid] + node_widths[nid])
+    return node_lefts[last] + node_widths[last] + TREE_SIDE_PAD_PX
 def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
     if record is None:
         return
@@ -1766,7 +1771,7 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
             # node_children_map = {nid: record["nodes"][nid]["children"] for nid in record["nodes"]}
             node_children_map = {nid: record_for_layout["nodes"][nid]["children"] for nid in record_for_layout["nodes"]}
 
-            node_actual_map = {nid: record["nodes"][nid]["actual"] for nid in record_for_layout["nodes"]}
+            node_actual_map = {nid: record_for_layout["nodes"][nid]["actual"] for nid in record_for_layout["nodes"]}
 
             svg_html = build_tree_connector_svg_cached(
                 record["image_id"],
@@ -1779,9 +1784,9 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
             )
             st.markdown(svg_html, unsafe_allow_html=True)
 
+                    # row=[nid for nid in row if nid != TREE_SUMMARY_NODE_ID],
             for row_idx, row in enumerate(display_rows):
                 parts = build_row_parts_from_layout(
-                    # row=[nid for nid in row if nid != TREE_SUMMARY_NODE_ID],
                     row=row,
                     node_lefts=node_lefts,
                     node_widths=node_widths,
@@ -1791,7 +1796,10 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
                 spec = [max(1.0, width_px) for _, width_px, _ in parts]
 
                 row_key = safe_token(f"hier_row__{record['image_id']}__{row_idx}")
-                inject_hierarchy_row_style(row_key, tree_width)
+                row_width = row_render_width(row, node_lefts, node_widths)
+                inject_hierarchy_row_style(row_key, row_width)
+                    
+                # inject_hierarchy_row_style(row_key, tree_width)
 
                 with st.container(key=row_key):
                     cols = st.columns(spec, gap=None)
