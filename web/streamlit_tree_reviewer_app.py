@@ -31,7 +31,7 @@ TREE_BUTTON_BASE_PX = 30
 TREE_CHAR_WIDTH_PX = 6
 
 TREE_SIBLING_GAP_PX = 0 # 자식끼리의 간격
-TREE_ROOT_GAP_PX = 100 # 루트끼리의 GAP
+TREE_ROOT_GAP_PX = 1 # 루트끼리의 GAP
 TREE_SIDE_PAD_PX = 10 # 옆으로 얼마나 갈건지
 
 TREE_ROW_HEIGHT_PX = 50
@@ -92,8 +92,7 @@ def display_root_ids(record: Dict[str, Any]) -> List[str]:
     roots = list(record["roots"])
     if not roots:
         return [TREE_SUMMARY_NODE_ID]
-
-    return [roots[0], TREE_SUMMARY_NODE_ID] + roots[1:]
+    return roots
 
 # File / image helper
 
@@ -1753,9 +1752,7 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
     if not rows:
         return
     
-    display_rows = [list(r) for r in rows]
-    if display_rows:
-        display_rows[0] = [TREE_SUMMARY_NODE_ID] + display_rows[0]
+    display_rows = rows
 
     st.markdown("#### Hierarchy View")
 
@@ -1770,7 +1767,7 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
             node_children_map = {nid: record_for_layout["nodes"][nid]["children"] for nid in record_for_layout["nodes"]}
 
 
-            node_actual_map = {nid: record["nodes"][nid]["actual"] for nid in record["nodes"]}
+            node_actual_map = {nid: record["nodes"][nid]["actual"] for nid in record_for_layout["nodes"]}
 
             svg_html = build_tree_connector_svg_cached(
                 record["image_id"],
@@ -1785,17 +1782,12 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
 
             for row_idx, row in enumerate(display_rows):
                 parts = build_row_parts_from_layout(
-                    row=[nid for nid in row if nid != TREE_SUMMARY_NODE_ID],
+                    # row=[nid for nid in row if nid != TREE_SUMMARY_NODE_ID],
+                    row=row
                     node_lefts=node_lefts,
                     node_widths=node_widths,
                     tree_width=tree_width,
                 )
-
-                if row_idx == 0:
-                    if parts:
-                        parts = [parts[0], ("spacer", 16, None), ("button", tree_summary_width, TREE_SUMMARY_NODE_ID)] + parts[1:]
-                    else:
-                        parts = [("button", tree_summary_width, TREE_SUMMARY_NODE_ID)]
 
                 spec = [max(1.0, width_px) for _, width_px, _ in parts]
 
