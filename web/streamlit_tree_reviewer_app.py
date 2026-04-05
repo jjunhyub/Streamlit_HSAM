@@ -1219,17 +1219,33 @@ def load_annotations_if_needed() -> None:
 
 # Questions
 
-def node_questions_for(node_id: str) -> List[Dict[str, Any]]:
+# return [
+#     {"id": "presence", "label": f"Q1. <{leaf}> 노드가 실제 대상과 올바르게 설명하나요?", "type": "single_choice", "options": ["적절", "수용가능", "부적절", "실패", "판단불가"], "required": True},
+#     {"id": "boundary", "label": "Q2. 마스크 경계가 깔끔한가요?", "type": "single_choice", "options": ["매우 좋음", "보통", "나쁨"], "required": True},
+#     {"id": "missing_area", "label": "Q3. 누락된 영역이 있나요?", "type": "single_choice", "options": ["없음", "조금 있음", "많음"], "required": True},
+#     {"id": "extra_area", "label": "Q4. 과하게 포함된 영역이 있나요?", "type": "single_choice", "options": ["없음", "조금 있음", "많음"], "required": True},
+#     {"id": "visibility", "label": "Q5. 가려짐/잘림 때문에 평가가 어렵나요?", "type": "single_choice", "options": ["아니오", "조금", "많이"], "required": True},
+#     {"id": "score", "label": "Q6. 전체 품질 점수", "type": "single_choice", "options": ["1", "2", "3", "4", "5"], "required": True},
+#     {"id": "issue_tags", "label": "Q7. 이슈 태그", "type": "multi_choice", "options": ["boundary", "missing", "extra", "wrong_class", "tiny_object", "occlusion"], "required": False},
+#     {"id": "comment", "label": "Q8. 메모", "type": "text", "required": False},
+# ]
+
+def node_questions_for(record: Dict[str, Any], node_id: str) -> List[Dict[str, Any]]:
     leaf = human_label(node_id).replace("_", " ")
+
+    parent_id = record["nodes"][node_id].get("parent")
+    children_ids = record["nodes"][node_id].get("children", [])
+
+    parent_label = human_label(parent_id) if parent_id else "없음"
+    children_labels = [human_label(c) for c in children_ids] if children_ids else ["없음"]
+
+    children_text = ", ".join(children_labels)
     return [
-        {"id": "presence", "label": f"Q1. <{leaf}> 노드가 실제 대상과 맞나요?", "type": "single_choice", "options": ["예", "아니오", "애매함"], "required": True},
-        {"id": "boundary", "label": "Q2. 마스크 경계가 깔끔한가요?", "type": "single_choice", "options": ["매우 좋음", "보통", "나쁨"], "required": True},
-        {"id": "missing_area", "label": "Q3. 누락된 영역이 있나요?", "type": "single_choice", "options": ["없음", "조금 있음", "많음"], "required": True},
+        {"id": "presence", "label": f"Q1. <{leaf}>가 마스크가 가리키는 시각적 대상을 올바르게 설명하나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
+        {"id": "boundary", "label": f"Q2. 현재 마스크가 <{leaf}>의 시각적 범위를 얼마나 잘 잡았나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
+        {"id": "missing_area", "label": f"Q3. <{leaf}>은/는 부모의 의미있는 하위 부분/영역/구성요소인가요??", "type": "single_choice", "options": ["맞음", "애매함", "아님", "판단불가"], "required": True},
         {"id": "extra_area", "label": "Q4. 과하게 포함된 영역이 있나요?", "type": "single_choice", "options": ["없음", "조금 있음", "많음"], "required": True},
-        {"id": "visibility", "label": "Q5. 가려짐/잘림 때문에 평가가 어렵나요?", "type": "single_choice", "options": ["아니오", "조금", "많이"], "required": True},
-        {"id": "score", "label": "Q6. 전체 품질 점수", "type": "single_choice", "options": ["1", "2", "3", "4", "5"], "required": True},
-        {"id": "issue_tags", "label": "Q7. 이슈 태그", "type": "multi_choice", "options": ["boundary", "missing", "extra", "wrong_class", "tiny_object", "occlusion"], "required": False},
-        {"id": "comment", "label": "Q8. 메모", "type": "text", "required": False},
+        {"id": "extra_area", "label": "Q5. 이 노드를 dataset의 단일 annotation unit을 채택할 수 있나요", "type": "single_choice", "options": ["없음", "조금 있음", "많음"], "required": True},
     ]
 
 def tree_questions_for(image_id: str) -> List[Dict[str, Any]]:
@@ -1263,14 +1279,14 @@ def required_missing_questions(image_id: str, mode: str, questions: List[Dict[st
             missing.append(q["id"])
     return missing
 
-def node_confirmed(image_id: str, node_id: str) -> bool:
+def node_confirmed(record: Dict[str, Any], image_id: str, node_id: str) -> bool:
     if not is_reviewable_node(node_id):
         return True
-    return len(required_missing_questions(image_id, "node", node_questions_for(node_id), node_id=node_id,)) == 0
+    return len(required_missing_questions(image_id, "node", node_questions_for(record, node_id), node_id=node_id,)) == 0
 
 def all_nodes_confirmed(image_id: str, record: Dict[str, Any]) -> bool:
     actual_nodes = [node_id for node_id in record["actual_nodes"] if is_reviewable_node(node_id)]
-    return bool(actual_nodes) and all(node_confirmed(image_id, node_id) for node_id in actual_nodes)
+    return bool(actual_nodes) and all(node_confirmed(record, image_id, node_id) for node_id in actual_nodes)
 
 def tree_summary_confirmed(image_id: str) -> bool:
     return len(required_missing_questions(image_id, "tree", tree_questions_for(image_id),)) == 0
@@ -1280,7 +1296,7 @@ def image_complete(image_id: str, record: Dict[str, Any]) -> bool:
 
 def node_progress(image_id: str, record: Dict[str, Any]) -> Tuple[int, int]:
     actual_nodes = [node_id for node_id in record["actual_nodes"] if is_reviewable_node(node_id)]
-    done = sum(1 for node_id in actual_nodes if node_confirmed(image_id, node_id))
+    done = sum(1 for node_id in actual_nodes if node_confirmed(record, image_id, node_id))
     total = len(actual_nodes)
     return done, total
 
@@ -1290,7 +1306,7 @@ def missing_report(image_id: str, record: Dict[str, Any]) -> Dict[str, Any]:
     for node_id in record["actual_nodes"]:
         if not is_reviewable_node(node_id):
             continue
-        q_missing = required_missing_questions(image_id, "node", node_questions_for(node_id), node_id=node_id,)
+        q_missing = required_missing_questions(image_id, "node", node_questions_for(record, node_id), node_id=node_id,)
         if q_missing:
             missing_nodes.append({"node_id": node_id, "missing_question_ids": q_missing,})
     tree_missing = required_missing_questions(image_id, "tree", tree_questions_for(image_id),)
@@ -1784,7 +1800,7 @@ def render_tree_node(record: Dict[str, Any], node_id: str, depth: int) -> None:
 
     image_id = record["image_id"]
     selected = st.session_state.selected_mode == "node" and st.session_state.selected_node_id == node_id
-    done = node_confirmed(image_id, node_id) if node["actual"] else False
+    done = node_confirmed(record, image_id, node_id) if node["actual"] else False
     is_clickable = node["actual"]
 
     box_key = f"nodebox_{safe_token(image_id)}_{safe_token(node_id)}"
@@ -1806,7 +1822,7 @@ def render_tree_node(record: Dict[str, Any], node_id: str, depth: int) -> None:
             st.markdown(f"<div class='small-muted'>{label}</div>", unsafe_allow_html=True)
 
         if is_clickable:
-            missing = required_missing_questions(image_id, "node", node_questions_for(node_id), node_id=node_id)
+            missing = required_missing_questions(image_id, "node", node_questions_for(record, node_id), node_id=node_id)
             status_txt = "완료" if done else f"미답변 {len(missing)}개"
             st.caption(f"{node_id} | {status_txt}")
         else:
@@ -1941,7 +1957,7 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
                                 st.session_state.selected_mode == "node"
                                 and st.session_state.selected_node_id == node_id
                             )
-                            done = node_confirmed(record["image_id"], node_id) if is_actual else False
+                            done = node_confirmed(record, record["image_id"], node_id) if is_actual else False
 
                             button_key = safe_token(
                                 f"exp_tree_btn__{record['image_id']}__{node_id}__r{row_idx}__p{part_idx}"
@@ -2242,7 +2258,7 @@ def render_node_detail(record: Optional[Dict[str, Any]]) -> None:
         return
 
     render_asset_panel(record, node_id)
-    render_question_block(image_id, "node", node_questions_for(node_id), title="노드 질문", node_id=node_id)
+    render_question_block(image_id, "node", node_questions_for(record, node_id), title="노드 질문", node_id=node_id)
     render_finalize_box(record)
 
 
