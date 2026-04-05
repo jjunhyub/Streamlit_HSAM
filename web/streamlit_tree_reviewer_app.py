@@ -1231,7 +1231,7 @@ def load_annotations_if_needed() -> None:
 # ]
 
 def node_questions_for(record: Dict[str, Any], node_id: str) -> List[Dict[str, Any]]:
-    leaf = human_label(node_id).replace("_", " ")
+    current_label = human_label(node_id).replace("_", " ")
 
     parent_id = record["nodes"][node_id].get("parent")
     children_ids = record["nodes"][node_id].get("children", [])
@@ -1241,11 +1241,11 @@ def node_questions_for(record: Dict[str, Any], node_id: str) -> List[Dict[str, A
 
     children_text = ", ".join(children_labels)
     return [
-        {"id": "presence", "label": f"Q1. <{leaf}>가 마스크가 가리키는 시각적 대상을 올바르게 설명하나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
-        {"id": "boundary", "label": f"Q2. 현재 마스크가 <{leaf}>의 시각적 범위를 얼마나 잘 잡았나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
-        {"id": "missing_area", "label": f"Q3. <{leaf}>은/는 부모의 의미있는 하위 부분/영역/구성요소인가요??", "type": "single_choice", "options": ["맞음", "애매함", "아님", "판단불가"], "required": True},
-        {"id": "extra_area", "label": "Q4. 과하게 포함된 영역이 있나요?", "type": "single_choice", "options": ["없음", "조금 있음", "많음"], "required": True},
-        {"id": "extra_area", "label": "Q5. 이 노드를 dataset의 단일 annotation unit을 채택할 수 있나요", "type": "single_choice", "options": ["없음", "조금 있음", "많음"], "required": True},
+        {"id": "label", "label": f"Q1. <{current_label}>가 마스크가 가리키는 시각적 대상을 올바르게 설명하나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
+        {"id": "mask", "label": f"Q2. 현재 마스크가 <{current_label}>의 시각적 범위를 얼마나 잘 잡았나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
+        {"id": "parent_child", "label": f"Q3. <{current_label}>은/는 <{parent_label}>의 의미있는 하위 부분/영역/구성요소인가요??", "type": "single_choice", "options": ["맞음", "애매함", "아님", "판단불가"], "required": True},
+        {"id": "decomposition", "label": "Q4. 이 영역을 현재 수준에서 표현한 방식은 어떤가요?", "type": "single_choice", "options": ["덜 분해됨", "적절함", "과분해됨", "판단불가"], "required": True},
+        {"id": "adopt", "label": "Q5. 이 노드를 dataset의 단일 annotation unit을 채택할 수 있나요?", "type": "single_choice", "options": ["채택", "보류", "기각", "판단불가"], "required": True},
     ]
 
 def tree_questions_for(image_id: str) -> List[Dict[str, Any]]:
