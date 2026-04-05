@@ -2,7 +2,7 @@
 REVIEW_USERS = {
     "admin": {
         "password": "0000",
-        "ranges": [(0, 5)],
+        "ranges": [(300, 320)],
     },
     "user1": {
         "password": "1111",
