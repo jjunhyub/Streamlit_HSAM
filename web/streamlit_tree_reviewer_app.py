@@ -1241,7 +1241,7 @@ def node_questions_for(record: Dict[str, Any], node_id: str) -> List[Dict[str, A
 
     children_text = ", ".join(children_labels)
     return [
-        {"id": "label", "label": f"Q1. <{current_label}>은(는) 이 마스크가 가리키는 시각적 대상을 올바르게 설명하고 있나요?", "type": "single_choice", "options": ["맞음", "애매함", "아님", "판단불가"], "required": True},
+        {"id": "label", "label": f"Q1. <{current_label}>은(는) 마스크가 가리키는 시각적 대상을 올바르게 설명하고 있나요?", "type": "single_choice", "options": ["맞음", "애매함", "아님", "판단불가"], "required": True},
         {"id": "parent_child", "label": f"Q2. <{current_label}>이 <{parent_label}>의 의미있는 하위 부분/영역/구성요소인가요??", "type": "single_choice", "options": ["맞음", "애매함", "아님", "판단불가"], "required": True},
         {"id": "decomposition", "label": f"Q3. <{current_label}>은(는) 다음 하위 요소들로 자연스럽고 일관되게 분해되었나요?\n({children_labels})", "type": "single_choice", "options": ["맞다", "애매함", "아님", "판단불가"], "required": True},
         {"id": "mask", "label": f"Q4. 마스크가 <{current_label}>의 시각적 범위를 얼마나 잘 반영하고 있나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
@@ -2124,8 +2124,23 @@ def render_asset_panel(record: Dict[str, Any], node_id: str) -> None:
             st.info("인스턴스 마스크가 없습니다.")
 
 # Rendering: detail
+def render_question_header(record: Dict[str, Any], node_id: str) -> None:
+    pills = get_inspector_pills(record, node_id)
+
+    st.markdown(
+        f"""
+        <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.35rem;">
+            <div style="font-size:1.5rem; font-weight:700;">노드 질문</div>
+            <div style="display:flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
+                {''.join([f"<span class='status-pill'>{p}</span>" for p in pills])}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 def render_question_block(
+    record: Dict[str, Any],
     image_id: str,
     mode: str,
     questions: List[Dict[str, Any]],
@@ -2146,7 +2161,8 @@ def render_question_block(
     question_pages = chunked(questions, QUESTION_PAGE_SIZE)
     visible_questions = question_pages[current_page]
 
-    st.markdown(f"#### {title}")
+    # st.markdown(f"#### {title}")
+    render_question_header(record, node_id)
     # st.caption(f"질문 페이지 {current_page + 1} / {total_pages}")
 
     def render_single_question(q: Dict[str, Any]) -> None:
@@ -2259,7 +2275,7 @@ def render_node_detail(record: Optional[Dict[str, Any]]) -> None:
         return
 
     render_asset_panel(record, node_id)
-    render_question_block(image_id, "node", node_questions_for(record, node_id), title="노드 질문", node_id=node_id)
+    render_question_block(record, image_id, "node", node_questions_for(record, node_id), title="노드 질문", node_id=node_id)
     render_finalize_box(record)
 
 
