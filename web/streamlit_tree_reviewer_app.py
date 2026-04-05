@@ -1241,11 +1241,12 @@ def node_questions_for(record: Dict[str, Any], node_id: str) -> List[Dict[str, A
 
     children_text = ", ".join(children_labels)
     return [
-        {"id": "label", "label": f"Q1. <{current_label}>가 마스크가 가리키는 시각적 대상을 올바르게 설명하나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
-        {"id": "mask", "label": f"Q2. 현재 마스크가 <{current_label}>의 시각적 범위를 얼마나 잘 잡았나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
-        {"id": "parent_child", "label": f"Q3. <{current_label}>은/는 <{parent_label}>의 의미있는 하위 부분/영역/구성요소인가요??", "type": "single_choice", "options": ["맞음", "애매함", "아님", "판단불가"], "required": True},
-        {"id": "decomposition", "label": "Q4. 이 영역을 현재 수준에서 표현한 방식은 어떤가요?", "type": "single_choice", "options": ["덜 분해됨", "적절함", "과분해됨", "판단불가"], "required": True},
-        {"id": "adopt", "label": "Q5. 이 노드를 dataset의 단일 annotation unit을 채택할 수 있나요?", "type": "single_choice", "options": ["채택", "보류", "기각", "판단불가"], "required": True},
+        {"id": "label", "label": f"Q1. <{current_label}>은(는) 이 마스크가 가리키는 시각적 대상을 올바르게 설명하고 있나요?", "type": "single_choice", "options": ["맞음", "애매함", "아님", "판단불가"], "required": True},
+        {"id": "parent_child", "label": f"Q2. <{current_label}>이 <{parent_label}>의 의미있는 하위 부분/영역/구성요소인가요??", "type": "single_choice", "options": ["맞음", "애매함", "아님", "판단불가"], "required": True},
+        {"id": "decomposition", "label": f"Q3. <{current_label}>은(는) 다음 하위 요소들로 자연스럽고 일관되게 분해되었나요?\n({children_labels})", "type": "single_choice", "options": ["맞다", "애매함", "아님", "판단불가"], "required": True},
+        {"id": "mask", "label": f"Q4. 마스크가 <{current_label}>의 시각적 범위를 얼마나 잘 반영하고 있나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
+        {"id": "instance", "label": f"Q5. 동일한 <{current_label}> 인스턴스들이 서로 잘 분리되어 있나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
+        {"id": "adopt", "label": "Q6. 이 라벨과 마스크 결과는 데이터셋에 포함하기에 적절한가요?", "type": "single_choice", "options": ["채택", "보류", "기각", "판단불가"], "required": True},
     ]
 
 def tree_questions_for(image_id: str) -> List[Dict[str, Any]]:
