@@ -2208,7 +2208,7 @@ def render_question_block(
                 label_visibility="collapsed",
             )
 
-    with st.container(height=400):
+    with st.container(height=250):
         triple_buffer = []
 
         for q in visible_questions:

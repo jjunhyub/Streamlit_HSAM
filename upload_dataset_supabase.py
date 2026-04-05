@@ -78,8 +78,8 @@ def upload_one(local_path: Path) -> tuple[str, str, int]:
                     file=f,
                     file_options={
                         "cache-control": "3600",
-                        "upsert": "true",
-                        # "upsert": "false" if SKIP_IF_EXISTS else "true",
+                        # "upsert": "true",
+                        "upsert": "false" if SKIP_IF_EXISTS else "true",
                         "content-type": content_type,
                     },
                 )
