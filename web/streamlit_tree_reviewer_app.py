@@ -1979,20 +1979,20 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
                             else:
                                 st.button(label, key=button_key, use_container_width=True, disabled=True)
 
-def render_visual_header(record: Dict[str, Any], node_id: str) -> None:
-    pills = get_inspector_pills(record, node_id)
+# def render_visual_header(record: Dict[str, Any], node_id: str) -> None:
+#     pills = get_inspector_pills(record, node_id)
 
-    st.markdown(
-        f"""
-        <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.35rem;">
-            <div style="font-size:1.5rem; font-weight:700;">Visuals</div>
-            <div style="display:flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
-                {''.join([f"<span class='status-pill'>{p}</span>" for p in pills])}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+#     st.markdown(
+#         f"""
+#         <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.35rem;">
+#             <div style="font-size:1.5rem; font-weight:700;">Visuals</div>
+#             <div style="display:flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
+#                 {''.join([f"<span class='status-pill'>{p}</span>" for p in pills])}
+#             </div>
+#         </div>
+#         """,
+#         unsafe_allow_html=True,
+#     )
     
 # def render_asset_panel(record: Dict[str, Any], node_id: str) -> None:
 #     render_visual_header(record, node_id)
@@ -2057,7 +2057,9 @@ def render_visual_header(record: Dict[str, Any], node_id: str) -> None:
 #         else:
 #             st.info("인스턴스 마스크가 없습니다.")
 def render_asset_panel(record: Dict[str, Any], node_id: str) -> None:
-    render_visual_header(record, node_id)
+    # render_visual_header(record, node_id)
+    
+    st.markdown(f"#### Visuals")
 
     assets = node_assets(record, node_id)
     leaf = human_label(node_id)
