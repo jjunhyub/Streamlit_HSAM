@@ -39,13 +39,18 @@ def remoteize(local_path: Path) -> str:
     rel = local_path.relative_to(LOCAL_ROOT).as_posix()
     return f"{REMOTE_PREFIX}/{rel}"
 
+def clear_assignments_for_reviewers(reviewer_ids: List[str]) -> None:
+    for reviewer_id in reviewer_ids:
+        supabase.table(REVIEW_ASSIGNMENTS_TABLE).delete().eq(
+            "reviewer_id", reviewer_id
+        ).execute()
 
 def build_manifest_row(record: Dict[str, Any]) -> Dict[str, Any]:
     image_id = record["image_id"]
     image_dir = Path(record["image_dir"])
 
     full_path = appmod.get_full_image_path(record)
-    full_size = appmod.read_image_size(full_path) if full_path else None
+    full_size = appmod.read_image_size(full_path) if full_path and Path(full_path).exists() else None
 
     overlay_path = image_dir / "final_union_on_image.png"
     overlay_remote = remoteize(overlay_path) if overlay_path.exists() else None
@@ -66,29 +71,32 @@ def build_manifest_row(record: Dict[str, Any]) -> Dict[str, Any]:
             "mask_path": None,
             "mask_original_path": None,
             "instance_paths": [],
+            "instances_colored_path": None,
         }
 
         # 실제 노드만 asset 연결
         if info["actual"]:
-            assets = appmod.node_assets(record, node_id)
+            assets = local_node_assets(record, node_id)
 
-            if assets.get("mask"):
+            if assets.get("mask") and Path(assets["mask"]).exists():
                 node_payload["mask_path"] = remoteize(Path(assets["mask"]))
 
-            if assets.get("mask_original"):
+            if assets.get("mask_original") and Path(assets["mask_original"]).exists():
                 node_payload["mask_original_path"] = remoteize(Path(assets["mask_original"]))
 
             if assets.get("instances"):
                 node_payload["instance_paths"] = [
-                    remoteize(Path(p)) for p in assets["instances"]
+                    remoteize(Path(p)) for p in assets["instances"] if Path(p).exists()
                 ]
+            if assets.get("instances_colored") and Path(assets["instances_colored"]).exists():
+                node_payload["instances_colored_path"] = remoteize(Path(assets["instances_colored"]))
 
         nodes_out[node_id] = node_payload
 
     return {
         "image_id": image_id,
         "dataset_prefix": f"{REMOTE_PREFIX}/{image_id}",
-        "root_image_path": remoteize(Path(full_path)) if full_path else None,
+        "root_image_path": remoteize(Path(full_path)) if full_path and Path(full_path).exists() else None,
         "root_overlay_path": overlay_remote,
         "full_size": list(full_size) if full_size else None,
         "roots": record["roots"],
@@ -129,6 +137,69 @@ def upsert_assignments(rows: List[Dict[str, Any]]) -> None:
             on_conflict="reviewer_id,image_id",
         ).execute()
 
+def local_node_assets(record: Dict[str, Any], node_id: str) -> Dict[str, Any]:
+    node = record["nodes"].get(node_id, {})
+    folder_name = node.get("folder_name")
+    image_dir = Path(record["image_dir"])
+
+    root_original = appmod.get_full_image_path(record)
+    root_overlay = image_dir / "final_union_on_image.png"
+    if not root_overlay.exists():
+        root_overlay = None
+
+    if not folder_name:
+        return {
+            "root_original": root_original,
+            "root_overlay": root_overlay,
+            "mask": None,
+            "mask_original": None,
+            "instances": [],
+            "instances_colored": None,
+        }
+
+    node_dir = image_dir / folder_name
+    leaf = appmod.human_label(node_id)
+
+    mask_path = node_dir / f"{leaf}.mask.png"
+    if not mask_path.exists():
+        mask_path = None
+
+    mask_original_candidates = [
+        node_dir / f"{leaf}.bbox.jpg",
+        node_dir / f"{leaf}.rgb.jpg",
+        node_dir / f"{leaf}.crop.jpg",
+        node_dir / f"{leaf}.jpg",
+        node_dir / "bbox.jpg",
+        node_dir / "crop.jpg",
+        node_dir / "image.jpg",
+    ]
+    mask_original_path = next((p for p in mask_original_candidates if p.exists()), None)
+
+    instances = []
+    if node_dir.exists():
+        for p in sorted(node_dir.iterdir()):
+            if p.is_file() and appmod.is_instance_mask_file(p, leaf):
+                instances.append(p)
+
+    instances_colored_candidates = [
+        node_dir / f"{leaf}.instances.colored.png",
+        node_dir / f"{leaf}.instances.colored.jpg",
+        node_dir / f"{leaf}.instances.colored.webp",
+    ]
+    instances_colored_path = next(
+        (p for p in instances_colored_candidates if p.exists()),
+        None,
+    )
+
+    return {
+        "root_original": root_original,
+        "root_overlay": root_overlay,
+        "mask": mask_path,
+        "mask_original": mask_original_path,
+        "instances": instances,
+        "instances_colored": instances_colored_path,
+    }
+
 
 def main():
     if not LOCAL_ROOT.exists():
@@ -152,6 +223,11 @@ def main():
     upsert_manifest(manifest_rows)
 
     assignment_rows = build_assignment_rows(sorted_image_ids)
+
+    reviewer_ids = list(REVIEW_USERS.keys())
+    print(f"Clearing old review_assignments for reviewers: {reviewer_ids}")
+    clear_assignments_for_reviewers(reviewer_ids)
+
     print(f"Uploading review_assignments rows... total={len(assignment_rows)}")
     upsert_assignments(assignment_rows)
 
