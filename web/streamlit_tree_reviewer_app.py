@@ -1322,8 +1322,8 @@ def node_questions_for(record: Dict[str, Any], node_id: str) -> List[Dict[str, A
     children_text = ", ".join(children_labels)
     return [
         {"id": "label", "label": f"Q1. <{current_label}>은(는) 마스크가 가리키는 시각적 대상을 올바르게 설명하고 있나요?", "type": "single_choice", "options": ["맞음", "애매함", "아님", "판단불가"], "required": True},
-        {"id": "parent_child", "label": f"Q2. <{current_label}>이 <{parent_label}>의 의미있는 하위 부분/영역/구성요소인가요??", "type": "single_choice", "options": ["맞음", "애매함", "아님", "판단불가"], "required": True},
-        {"id": "decomposition", "label": f"Q3. <{current_label}>은(는) 다음 하위 요소들로 자연스럽고 일관되게 분해되었나요?\n({children_labels})", "type": "single_choice", "options": ["맞다", "애매함", "아님", "판단불가"], "required": True},
+        {"id": "parent_child", "label": f"Q2. <{current_label}>이 <{parent_label}>의 의미있는 하위 부분/영역/구성요소인가요?", "type": "single_choice", "options": ["맞음", "애매함", "아님", "판단불가"], "required": True},
+        {"id": "decomposition", "label": f"Q3. <{current_label}>은(는) 다음 하위 요소들로 자연스럽고 일관되게 분해되었나요?({children_labels})", "type": "single_choice", "options": ["맞다", "애매함", "아님", "판단불가"], "required": True},
         {"id": "mask", "label": f"Q4. 마스크가 <{current_label}>의 시각적 범위를 얼마나 잘 반영하고 있나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
         {"id": "instance", "label": f"Q5. 동일한 <{current_label}> 인스턴스들이 서로 잘 분리되어 있나요?", "type": "single_choice", "options": ["정확", "수용 가능", "부정확", "실패", "판단불가"], "required": True},
         {"id": "adopt", "label": "Q6. 이 라벨과 마스크 결과는 데이터셋에 포함하기에 적절한가요?", "type": "single_choice", "options": ["채택", "보류", "기각", "판단불가"], "required": True},
@@ -1443,10 +1443,10 @@ def node_assets(record: Dict[str, Any], node_id: str) -> Dict[str, Any]:
         "mask_original": node.get("mask_original_path"),
         "mask": node.get("mask_path"),
         "instances": node.get("instance_paths", []) or [],
+        "instances_colored": node.get("instances_colored_path"),
         "full_size": tuple(record["full_size"]) if record.get("full_size") else None,
         "bbox": tuple(bbox) if bbox else None,
     }
-
 
 # Styling
 
@@ -2139,15 +2139,14 @@ def render_experimental_tree_panel(record: Dict[str, Any]) -> None:
 #                 st.info("인스턴스 마스크 이미지를 읽지 못했습니다.")
 #         else:
 #             st.info("인스턴스 마스크가 없습니다.")
+
+
 def render_asset_panel(record: Dict[str, Any], node_id: str) -> None:
-    # render_visual_header(record, node_id)
-    
-    st.markdown(f"#### Visuals")
+    st.markdown("#### Visuals")
 
     assets = node_assets(record, node_id)
     leaf = human_label(node_id)
 
-    # 기본 이미지만 바로 표시
     review_items: List[Image.Image] = []
     review_captions: List[str] = []
 
@@ -2178,12 +2177,18 @@ def render_asset_panel(record: Dict[str, Any], node_id: str) -> None:
             review_items.append(img)
             review_captions.append(f"<{leaf}> 마스크")
 
+    # 5) 인스턴스 colored
+    if assets.get("instances_colored"):
+        img = build_direct_display(assets["instances_colored"])
+        if img is not None:
+            review_items.append(img)
+            review_captions.append(f"<{leaf}> 인스턴스")
+
     if review_items:
         st.image(review_items, caption=review_captions, width=320)
     else:
         st.info("노드 검토용 이미지를 찾지 못했습니다.")
 
-    # 인스턴스 이미지는 필요할 때만 열기
     show_instances = st.toggle(
         "인스턴스 보기",
         value=False,

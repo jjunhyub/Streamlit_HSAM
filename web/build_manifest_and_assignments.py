@@ -12,7 +12,6 @@ from reviewer_config import REVIEW_USERS
 # 직접 수정할 값들
 SUPABASE_URL = "https://vutkowvxahuggkmhrtka.supabase.co"
 SUPABASE_KEY = ""
-SUPABASE_SECRET_KEY = ""
 
 APP_MODULE = "streamlit_tree_reviewer_app"
 

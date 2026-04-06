@@ -9,7 +9,7 @@ from supabase import create_client
 
 # 직접 수정할 값들
 SUPABASE_URL = "https://vutkowvxahuggkmhrtka.supabase.co"
-SUPABASE_SECRET_KEY = ""
+SUPABASE_KEY = ""
 BUCKET_NAME = "review-dataset"
 
 # 네 로컬 데이터셋 폴더
@@ -24,7 +24,7 @@ SKIP_IF_EXISTS = True
 # 재시도 횟수
 MAX_RETRIES = 3
 
-supabase = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def iter_files(root: Path):
@@ -170,4 +170,6 @@ def main():
     print("\nDone.")
     print(f"Manifest saved to: {manifest_path.resolve()}")
     print(f"Errors saved to: {error_log_path.resolve()}")
-    
+
+if __name__ == "__main__":
+    main()

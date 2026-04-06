@@ -1,0 +1,7 @@
+===== DATASET STATS (first 1000 images) =====
+Images: 1000
+Nodes: 26843
+Instances: 113844
+Avg nodes per image: 26.84
+Avg instances per image: 113.84
+Avg instances per node: 4.24
