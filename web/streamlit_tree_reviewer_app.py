@@ -2186,7 +2186,7 @@ def render_asset_panel(record: Dict[str, Any], node_id: str) -> None:
 
     if review_items:
         # st.image(review_items, caption=review_captions)
-        st.image(review_items, caption=review_captions, width=340)
+        st.image(review_items, caption=review_captions, width=400)
     else:
         st.info("노드 검토용 이미지를 찾지 못했습니다.")
 
