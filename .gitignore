@@ -1,5 +1,6 @@
 datasets/
 meeting/
+analysis_results/
 translated_files/
 upload_manifest.csv
 manifest_preview.json
