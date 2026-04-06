@@ -165,6 +165,7 @@ def local_node_assets(record: Dict[str, Any], node_id: str) -> Dict[str, Any]:
         mask_path = None
 
     mask_original_candidates = [
+        node_dir / f"{leaf}.mask.original.png",
         node_dir / f"{leaf}.bbox.jpg",
         node_dir / f"{leaf}.rgb.jpg",
         node_dir / f"{leaf}.crop.jpg",
