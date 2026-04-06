@@ -52,6 +52,10 @@ OUTPUT_ROOT = BASE_DIR / "outputs"
 # DATASET_ROOT = Path("../datasets/coco_pilot_v1")
 # OUTPUT_ROOT = Path("./outputs")
 
+# Translation path: 
+TRANSLATION_JSON_PATH = Path(__file__).resolve().parent / "full_translated.json"
+
+
 # Utilities
 
 def safe_token(value: str) -> str:
@@ -62,6 +66,82 @@ def human_label(node_id: str) -> str:
 
 def now_iso():
     return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+@st.cache_data(show_spinner=False)
+def load_translation_map(path_str: str) -> Dict[str, Dict[str, Dict[str, str]]]:
+    path = Path(path_str)
+    if not path.exists():
+        return {}
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    out: Dict[str, Dict[str, Dict[str, str]]] = {}
+
+    images = payload.get("images", [])
+    if not isinstance(images, list):
+        return {}
+
+    for item in images:
+        if not isinstance(item, dict):
+            continue
+
+        image_id = str(item.get("image_id", ""))
+        nodes = item.get("nodes", {})
+        if not image_id or not isinstance(nodes, dict):
+            continue
+
+        out[image_id] = {}
+        for node_id, info in nodes.items():
+            if not isinstance(info, dict):
+                continue
+            out[image_id][str(node_id)] = {
+                "en": str(info.get("en", "") or ""),
+                "ko": str(info.get("ko", "") or ""),
+            }
+
+    return out
+
+
+def get_translation_entry(image_id: str, node_id: Optional[str]) -> Optional[Dict[str, str]]:
+    if not node_id:
+        return None
+    tmap = load_translation_map(str(TRANSLATION_JSON_PATH))
+    return tmap.get(str(image_id), {}).get(str(node_id))
+
+
+def translated_label(image_id: str, node_id: Optional[str]) -> str:
+    if not node_id:
+        return "-"
+
+    base = human_label(node_id)
+    entry = get_translation_entry(image_id, node_id)
+
+    if not entry:
+        return base
+
+    ko = (entry.get("ko") or "").strip()
+    en = (entry.get("en") or "").strip()
+
+    if ko and ko not in {"전체 장면", ""} and ko.lower() != en.lower():
+        return f"{base} ({ko})"
+
+    return base
+
+
+def translated_path_labels(image_id: str, node_id: str) -> List[str]:
+    parts = node_id.split("__")
+    built = []
+    acc = []
+
+    for part in parts:
+        acc.append(part)
+        curr_node_id = "__".join(acc)
+        built.append(translated_label(image_id, curr_node_id))
+
+    return built
 
 # Tree helper
 
@@ -1099,21 +1179,21 @@ def build_tree(image_id: str, node_folder_names: List[str], image_dir: Path) -> 
         "actual_nodes": sorted(actual_nodes),
     }
 
-# def scan_dataset(dataset_root: Path) -> Dict[str, Any]:
-#     records: Dict[str, Any] = {}
-#     if not dataset_root.exists() or not dataset_root.is_dir():
-#         return records
+def scan_dataset(dataset_root: Path) -> Dict[str, Any]:
+    records: Dict[str, Any] = {}
+    if not dataset_root.exists() or not dataset_root.is_dir():
+        return records
 
-#     for image_dir in sorted([p for p in dataset_root.iterdir() if p.is_dir()]):
-#         node_folders = [
-#             p.name
-#             for p in image_dir.iterdir()
-#             if p.is_dir() and not p.name.startswith(".") and p.name != "__subcrops"
-#         ]
-#         if not node_folders:
-#             continue
-#         records[image_dir.name] = build_tree(image_dir.name, node_folders, image_dir=image_dir)
-#     return records
+    for image_dir in sorted([p for p in dataset_root.iterdir() if p.is_dir()]):
+        node_folders = [
+            p.name
+            for p in image_dir.iterdir()
+            if p.is_dir() and not p.name.startswith(".") and p.name != "__subcrops"
+        ]
+        if not node_folders:
+            continue
+        records[image_dir.name] = build_tree(image_dir.name, node_folders, image_dir=image_dir)
+    return records
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_records_for_reviewer(reviewer_id: str) -> Dict[str, Any]:
@@ -1317,6 +1397,8 @@ def missing_report(image_id: str, record: Dict[str, Any]) -> Dict[str, Any]:
 # Asset lookup
 def get_inspector_pills(record: Dict[str, Any], node_id: str) -> List[str]:
     node = record["nodes"].get(node_id)
+    image_id = record["image_id"]
+
     if node is None:
         return ["현재: -", "부모: -", "자식: -", "깊이: -", "경로: -"]
 
@@ -1329,9 +1411,10 @@ def get_inspector_pills(record: Dict[str, Any], node_id: str) -> List[str]:
         if not (record["nodes"][child_id]["actual"] and not is_reviewable_node(child_id))
     ]
 
-    parent_label = human_label(parent_id) if parent_id else "-"
-    child_labels = [human_label(child_id) for child_id in children]
+    current_text = translated_label(image_id, node_id)
+    parent_text = translated_label(image_id, parent_id) if parent_id else "-"
 
+    child_labels = [translated_label(image_id, child_id) for child_id in children]
     if child_labels:
         if len(child_labels) > 5:
             children_text = ", ".join(child_labels[:5]) + f" 외 {len(child_labels) - 5}개"
@@ -1340,11 +1423,11 @@ def get_inspector_pills(record: Dict[str, Any], node_id: str) -> List[str]:
     else:
         children_text = "-"
 
-    pretty_path = " → ".join(get_node_path_labels(node_id))
+    pretty_path = " → ".join(translated_path_labels(image_id, node_id))
 
     return [
-        f"현재: {human_label(node_id)}",
-        f"부모: {parent_label}",
+        f"현재: {current_text}",
+        f"부모: {parent_text}",
         f"자식: {children_text}",
         f"깊이: {depth}",
         f"경로: {pretty_path}",
@@ -2256,12 +2339,14 @@ def render_node_detail(record: Optional[Dict[str, Any]]) -> None:
             f"<div class='section-card'><b>{image_id}</b><br/>전체 트리 질문 화면입니다.</div>",
             unsafe_allow_html=True,
         )
-        render_question_block(
-            image_id,
-            "tree",
-            tree_questions_for(image_id),
-            title="전체 트리 질문",
-        )
+        # DEPRECATED
+        # render_question_block(
+        #     image_id,
+        #     "tree",
+        #     tree_questions_for(image_id),
+        #     title="전체 트리 질문",
+        # )
+        render_question_block(record, image_id, "tree", tree_questions_for(image_id), title="전체 트리 질문",)
         render_finalize_box(record)
         return
 
@@ -2294,7 +2379,7 @@ def render_finalize_box(record: Dict[str, Any]) -> None:
     st.markdown(
         """
         <div style="
-            font-size: 30px;
+            font-size: 20px;
             font-weight: 700;
             margin-top: 12px;
             margin-bottom: 6px;
