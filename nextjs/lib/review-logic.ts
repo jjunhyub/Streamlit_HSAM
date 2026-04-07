@@ -6,8 +6,8 @@ export const TREE_SUMMARY_NODE_ID = '__tree_summary__';
 
 export const TREE_BUTTON_MIN_WIDTH_PX = 10;
 export const TREE_BUTTON_MAX_WIDTH_PX = 320;
-export const TREE_BUTTON_BASE_PX = 15;
-export const TREE_CHAR_WIDTH_PX = 8;
+export const TREE_BUTTON_BASE_PX = 10;
+export const TREE_CHAR_WIDTH_PX = 9;
 export const TREE_BUTTON_HEIGHT_PX = 30;
 export const TREE_CONNECTOR_STUB_PX = 8;
 export const TREE_CONNECTOR_RADIUS_PX = 8;
@@ -15,7 +15,7 @@ export const TREE_SIBLING_GAP_PX = 10;
 export const TREE_ROOT_GAP_PX =0;
 export const TREE_SIDE_PAD_PX = 10;
 export const TREE_ROW_HEIGHT_PX = 50;
-export const TREE_ROW_GAP_PX = 15;
+export const TREE_ROW_GAP_PX = 20;
 export const TREE_PANEL_TOP_PAD_PX = 0;
 
 export function translatedLabel(imageId, nodeId, translationMap) {
@@ -91,23 +91,23 @@ export function nodeQuestionsFor(record, nodeId) {
   return [
     {
       id: 'label',
-      label: `Q1. <${currentLabel}>은(는) 마스크가 가리키는 시각적 대상을 올바르게 설명하고 있나요?`,
+      label: `Q1. <${currentLabel}>은(는) 마스크가 가리키는 대상을 올바르게 설명하고 있나요?`,
       type: 'single_choice',
       options: ['맞음', '애매함', '아님', '판단불가'],
       required: true,
     },
     {
       id: 'parent_child',
-      label: `Q2. <${currentLabel}>이 <${parentLabel}>의 의미있는 하위 부분/영역/구성요소인가요?`,
+      label: `Q2. <${currentLabel}>이 <${parentLabel}>의 올바른 하위 부분/영역/구성요소인가요?`,
       type: 'single_choice',
       options: ['맞음', '애매함', '아님', '판단불가'],
       required: true,
     },
     {
       id: 'decomposition',
-      label: `Q3. <${currentLabel}>은(는) 다음 하위 요소들로 자연스럽고 일관되게 분해되었나요? (${childrenText})`,
+      label: `Q3. <${currentLabel}>은(는) 하위 요소들로 자연스럽고 일관되게 분해되었나요?`,
       type: 'single_choice',
-      options: ['맞다', '애매함', '아님', '판단불가'],
+      options: ['맞음', '애매함', '아님', '판단불가'],
       required: true,
     },
     {
@@ -126,7 +126,7 @@ export function nodeQuestionsFor(record, nodeId) {
     },
     {
       id: 'adopt',
-      label: 'Q6. 이 라벨과 마스크 결과는 데이터셋에 포함하기에 적절한가요?',
+      label: 'Q6. 이 라벨과 마스크 결과는 데이터로 사용하기에 충분한가요?',
       type: 'single_choice',
       options: ['채택', '보류', '기각', '판단불가'],
       required: true,

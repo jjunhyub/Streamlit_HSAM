@@ -89,20 +89,20 @@ export default function QuestionPanel({
     ? '전체 트리 질문'
     : `${translatedLabel(imageId, nodeId, translationMap)} 노드 질문`;
 
-  const pills = mode === 'tree'
-    ? [`image: ${imageId}`, 'mode: tree summary']
-    : getInspectorPills(record, nodeId, translationMap);
+  // const pills = mode === 'tree'
+  //   ? [`image: ${imageId}`, 'mode: tree summary']
+  //   : getInspectorPills(record, nodeId, translationMap);
 
   return (
     <section className="sectionCard">
       <div className="sectionHeaderWithMeta">
         <div>
           <h2 className="sectionTitle">{headerTitle}</h2>
-          <div className="statusPillsRow">
+          {/* <div className="statusPillsRow">
             {pills.map((pill) => (
               <span className="statusPill" key={pill}>{pill}</span>
             ))}
-          </div>
+          </div> */}
         </div>
       </div>
 

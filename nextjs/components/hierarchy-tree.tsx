@@ -30,7 +30,7 @@ function buttonWidthForLabel(label) {
 }
 
 function getNodeLabel(imageId, nodeId, translationMap) {
-  return nodeId === TREE_SUMMARY_NODE_ID ? 'Full' : translatedLabel(imageId, nodeId, translationMap);
+  return nodeId === TREE_SUMMARY_NODE_ID ? 'Full-Tree' : translatedLabel(imageId, nodeId, translationMap);
 }
 
 export default function HierarchyTree({
@@ -72,7 +72,10 @@ export default function HierarchyTree({
     Math.max(0, layout.rows.length - 1) * TREE_ROW_GAP_PX;
 
   return (
-    <section className="sectionCard hierarchyCard">
+    <section
+      className="sectionCard hierarchyCard"
+      style={{ minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}
+    >
       <div className="sectionHeaderWithMeta">
         <div>
           <h2 className="sectionTitle">Hierarchy View</h2>
@@ -82,8 +85,26 @@ export default function HierarchyTree({
         </div>
       </div>
 
-      <div className="treeScroller">
-        <div className="treeCanvas" style={{ width: layout.treeWidth, height: svgHeight }}>
+      <div
+        className="treeScroller"
+        style={{
+          width: '100%',
+          maxWidth: '100%',
+          minWidth: 0,
+          overflowX: 'auto',
+          overflowY: 'hidden',
+        }}
+      >
+        <div
+          className="treeCanvas"
+          style={{
+            width: layout.treeWidth,
+            minWidth: '100%',
+            height: svgHeight,
+            position: 'relative',
+            flex: '0 0 auto',
+          }}
+        >
           <svg
             className="treeSvg"
             width={layout.treeWidth}

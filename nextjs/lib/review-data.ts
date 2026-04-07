@@ -106,11 +106,6 @@ export function collectAllowedAssetPaths(record: any) {
     add(node.mask_original_full_path);
     add(node.instances_colored_path);
 
-    // // DB에 필드가 없더라도 mask_path 기준으로 유도해서 허용
-    // add(deriveSiblingFromMask(maskPath, '.overlay.png'));
-    // add(deriveSiblingFromMask(maskPath, '.mask.original.full.png'));
-    // add(deriveSiblingFromMask(maskPath, '.instances.colored.png'));
-
     for (const instancePath of node.instance_paths || []) {
       add(instancePath);
     }
