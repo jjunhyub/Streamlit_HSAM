@@ -1,0 +1,550 @@
+:root {
+  --bg: #0b1020;
+  --card: rgba(255, 255, 255, 0.04);
+  --card-strong: rgba(255, 255, 255, 0.06);
+  --border: rgba(148, 163, 184, 0.22);
+  --border-strong: rgba(148, 163, 184, 0.35);
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.18);
+  --success: #16a34a;
+  --success-soft: rgba(22, 163, 74, 0.18);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.18);
+  --warning: #f59e0b;
+  --warning-soft: rgba(245, 158, 11, 0.18);
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.28);
+  --radius: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: radial-gradient(circle at top, #111827 0%, #0b1020 55%, #070b14 100%);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+input,
+textarea {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+}
+
+.textField,
+.questionTextarea {
+  width: 100%;
+  border-radius: 12px;
+  padding: 0.8rem 0.95rem;
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.textField:focus,
+.questionTextarea:focus {
+  border-color: rgba(59, 130, 246, 0.7);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.primaryButton,
+.secondaryButton {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 0.72rem 0.95rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.imageListItem:hover,
+.treeNodeButton:hover {
+  transform: translateY(-1px);
+}
+
+.primaryButton {
+  width: 100%;
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  border-color: rgba(37, 99, 235, 0.9);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.treeNodeButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.secondaryButton {
+  white-space: nowrap;
+}
+
+.loginPage,
+.errorPage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+.loginCard,
+.errorPageCard,
+.emptyStateCard {
+  width: min(100%, 560px);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  padding: 2rem;
+  backdrop-filter: blur(12px);
+}
+
+.loginBadge {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #bfdbfe;
+  margin-bottom: 1rem;
+  font-size: 0.82rem;
+}
+
+.loginTitle {
+  margin: 0 0 0.35rem;
+  font-size: 2rem;
+}
+
+.loginSubtitle,
+.fieldLabel,
+.sidebarCount,
+.sectionSubtle,
+.sectionHint,
+.topBarMeta,
+.imageListItemMeta {
+  color: var(--muted);
+}
+
+.fieldLabel {
+  display: block;
+  margin: 0.85rem 0 0.4rem;
+  font-size: 0.95rem;
+}
+
+.errorBox {
+  margin: 0.9rem 0;
+  border-radius: 12px;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  background: rgba(220, 38, 38, 0.12);
+}
+
+.appShell {
+  padding: 1.25rem;
+}
+
+.topBar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.topBarTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.topBarActions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.saveBadge {
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.9rem;
+}
+
+.saveBadge.is-saved {
+  border-color: rgba(22, 163, 74, 0.55);
+  background: var(--success-soft);
+}
+
+.saveBadge.is-dirty {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: var(--warning-soft);
+}
+
+.saveBadge.is-saving {
+  border-color: rgba(37, 99, 235, 0.45);
+  background: var(--accent-soft);
+}
+
+.saveBadge.is-error {
+  border-color: rgba(220, 38, 38, 0.45);
+  background: var(--danger-soft);
+}
+
+.mainGrid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.leftSidebar,
+.sectionCard {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+
+.leftSidebar {
+  padding: 1rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.sidebarSectionHeader,
+.sectionTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.sidebarSearch {
+  margin-top: 0.7rem;
+}
+
+.sidebarCount {
+  font-size: 0.88rem;
+  margin: 0.6rem 0 0.9rem;
+}
+
+.imageListScroller {
+  display: grid;
+  gap: 0.55rem;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.imageListItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.8rem;
+}
+
+.imageListItem.isSelected {
+  border-color: rgba(37, 99, 235, 0.7);
+  background: rgba(37, 99, 235, 0.14);
+}
+
+.imageListItem.isDone {
+  border-color: rgba(22, 163, 74, 0.55);
+  background: rgba(22, 163, 74, 0.12);
+}
+
+.imageListItemTitle {
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+.contentColumn {
+  display: grid;
+  gap: 1rem;
+}
+
+.sectionCard {
+  padding: 0rem 1rem 1rem;
+}
+
+
+.compactSummaryCard {
+  padding: 0.9rem 1rem;
+}
+
+.sectionHeaderWithMeta > div {
+  min-width: 0;
+}
+
+.sectionHeaderWithMeta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  min-width: 0;
+}
+.statusPillsRow,
+.pillCloud {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.55rem;
+  align-items: center;
+}
+
+.statusPill,
+.finalizePill {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.86rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.finalizePill {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: rgba(148, 163, 184, 0.09);
+}
+
+.treeScroller {
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.treeCanvas {
+  position: relative;
+  min-width: 100%;
+}
+
+.treeSvg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.treeConnectorGroup {
+  stroke: rgba(148, 163, 184, 0.38);
+  stroke-width: 1.5;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+
+.treeNodeButton {
+  position: absolute;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font-weight: 600;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+
+  padding: 0 0.7rem;
+  line-height: 1;
+}
+
+.treeNodeButton.isSelected {
+  border-color: rgba(37, 99, 235, 0.75);
+  background: rgba(37, 99, 235, 0.18);
+}
+
+.treeNodeButton.isDone {
+  border-color: rgba(22, 163, 74, 0.6);
+  background: rgba(22, 163, 74, 0.15);
+}
+
+.treeNodeButton.isMuted {
+  opacity: 0.6;
+}
+
+.visualsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.85rem;
+}
+
+.figureCard {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.figureTitle {
+  font-weight: 600;
+  margin-bottom: 0.55rem;
+}
+
+.aspectFrame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.aspectFrame.isDark {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.frameImage,
+.restoredCropImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.restoredCropImage {
+  inset: auto;
+}
+
+.maskOverlayLayer {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 0, 0, 0.45);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+
+.toggleRow {
+  margin-top: 0.9rem;
+}
+
+.toggleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+}
+
+.questionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.85rem;
+}
+
+.questionCard {
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  padding: 0.9rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.questionCard.isWide {
+  grid-column: 1 / -1;
+}
+
+.questionLabel {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  line-height: 1.45;
+}
+
+.choiceRow {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.choiceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.4rem 0.65rem;
+}
+
+.choiceChip input {
+  margin: 0;
+}
+
+.questionTextarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.emptyBox {
+  border-radius: 14px;
+  border: 1px dashed var(--border-strong);
+  padding: 1rem;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+@media (max-width: 1100px) {
+  .mainGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .leftSidebar {
+    position: static;
+  }
+
+  .topBar {
+    flex-direction: column;
+  }
+
+  .topBarActions {
+    justify-content: flex-start;
+  }
+}

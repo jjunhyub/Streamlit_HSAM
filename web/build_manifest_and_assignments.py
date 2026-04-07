@@ -69,6 +69,8 @@ def build_manifest_row(record: Dict[str, Any]) -> Dict[str, Any]:
             "bbox": list(bbox) if bbox else None,
             "mask_path": None,
             "mask_original_path": None,
+            "mask_original_full_path": None,
+            "overlay_path": None,
             "instance_paths": [],
             "instances_colored_path": None,
         }
@@ -83,10 +85,17 @@ def build_manifest_row(record: Dict[str, Any]) -> Dict[str, Any]:
             if assets.get("mask_original") and Path(assets["mask_original"]).exists():
                 node_payload["mask_original_path"] = remoteize(Path(assets["mask_original"]))
 
+            if assets.get("mask_original_full") and Path(assets["mask_original_full"]).exists():
+                node_payload["mask_original_full_path"] = remoteize(Path(assets["mask_original_full"]))
+
+            if assets.get("overlay") and Path(assets["overlay"]).exists():
+                node_payload["overlay_path"] = remoteize(Path(assets["overlay"]))
+
             if assets.get("instances"):
                 node_payload["instance_paths"] = [
                     remoteize(Path(p)) for p in assets["instances"] if Path(p).exists()
                 ]
+
             if assets.get("instances_colored") and Path(assets["instances_colored"]).exists():
                 node_payload["instances_colored_path"] = remoteize(Path(assets["instances_colored"]))
 
@@ -191,11 +200,33 @@ def local_node_assets(record: Dict[str, Any], node_id: str) -> Dict[str, Any]:
         None,
     )
 
+    mask_original_full_candidates = [
+        node_dir / f"{leaf}.mask.original.full.png",
+        node_dir / f"{leaf}.mask.original.full.jpg",
+        node_dir / f"{leaf}.mask.original.full.webp",
+    ]
+    mask_original_full_path = next(
+        (p for p in mask_original_full_candidates if p.exists()),
+        None,
+    )
+
+    overlay_candidates = [
+        node_dir / f"{leaf}.overlay.png",
+        node_dir / f"{leaf}.overlay.jpg",
+        node_dir / f"{leaf}.overlay.webp",
+    ]
+    overlay_path = next(
+        (p for p in overlay_candidates if p.exists()),
+        None,
+    )
+
     return {
         "root_original": root_original,
         "root_overlay": root_overlay,
         "mask": mask_path,
         "mask_original": mask_original_path,
+        "mask_original_full": mask_original_full_path,
+        "overlay": overlay_path,
         "instances": instances,
         "instances_colored": instances_colored_path,
     }
